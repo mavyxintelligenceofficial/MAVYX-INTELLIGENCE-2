@@ -1,0 +1,12 @@
+# Model Service - environment variables
+# Copy this to .env in this same folder and adjust if needed.
+
+PORT=4004
+
+# Chosen provider for Phase 4: Anthropic Claude.
+# Sign up / get a key at https://console.anthropic.com/settings/keys
+ANTHROPIC_API_KEY=paste_your_anthropic_api_key_here
+
+# MUST match JWT_SECRET in every other service's .env exactly - this
+# service verifies the same tokens with the same secret.
+JWT_SECRET=change_this_to_a_long_random_string_before_production

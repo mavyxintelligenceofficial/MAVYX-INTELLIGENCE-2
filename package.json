@@ -1,0 +1,23 @@
+{
+  "name": "mavyx-intelligence",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI-assisted Forex market intelligence platform",
+  "packageManager": "pnpm@9.0.0",
+  "workspaces": [
+    "apps/*",
+    "services/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo 'Per-app dev commands will be added as each app/service is scaffolded'",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx",
+    "format": "prettier --write .",
+    "test": "echo 'Test runner will be wired up in Phase 1 Step 2'"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

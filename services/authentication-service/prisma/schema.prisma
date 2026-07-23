@@ -1,0 +1,32 @@
+// Prisma schema for the Authentication Service.
+// This defines the "users" table that the rest of the platform will
+// eventually reference (portfolios, watchlists, recommendations, etc.
+// will all belong to a User once those services are built).
+
+generator client {
+  provider = "prisma-client-js"
+  // IMPORTANT: generates into a folder private to THIS service, instead
+  // of the shared/hoisted node_modules/@prisma/client location. Without
+  // this, running `prisma generate` in user-service silently overwrites
+  // authentication-service's generated types (and vice versa) - this is
+  // exactly the "Property 'user' does not exist" bug encountered on
+  // 2026-07-16. Every service's schema.prisma must set its own unique
+  // output path like this one.
+  output = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  fullName     String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("users")
+}

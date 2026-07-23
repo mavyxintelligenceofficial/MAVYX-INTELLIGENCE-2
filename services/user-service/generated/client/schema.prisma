@@ -1,0 +1,66 @@
+// Prisma schema for the User Service.
+// This is deliberately SEPARATE from authentication-service's schema:
+// login credentials (email, passwordHash) live only in the auth service's
+// `users` table. This service owns everything about a user that is NOT
+// a credential - role, display preferences, notification settings, and
+// (per PRD Vol. I Ch. 5's Dashboard module + TAD Vol. III Ch. 3's User
+// Profile Module, which lists "User preferences" and "Personalization"
+// as its responsibilities) the user's Forex watchlist.
+//
+// `authUserId` links back to authentication-service's User.id. There is
+// NO foreign key constraint across service boundaries on purpose - in a
+// microservices architecture, each service owns its own data and does
+// not reach into another service's tables directly, even if they
+// currently happen to share one physical Postgres instance. The link is
+// validated at the application level instead (via the JWT's `sub` claim,
+// which IS that same id).
+
+generator client {
+  provider = "prisma-client-js"
+  // IMPORTANT: private to this service - see the matching comment in
+  // authentication-service/prisma/schema.prisma for why this is required
+  // in every service, not just this one.
+  output   = "../generated/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Roles per SRS Vol. II Chapter 2, Section 2.5 "User Roles".
+enum UserRole {
+  ADMINISTRATOR
+  PROFESSIONAL
+  STANDARD
+  RESEARCH
+}
+
+model UserProfile {
+  id         String @id @default(uuid())
+  // The user's id from authentication-service (the JWT's `sub` claim).
+  authUserId String @unique
+
+  role        UserRole @default(STANDARD)
+  displayName String?
+  timezone    String?
+
+  // Per SRS Vol. II Chapter 4, Section 4.17: "Notifications should be
+  // configurable by user preferences." Kept as flexible JSON for now
+  // since the SRS doesn't enumerate exact notification types yet -
+  // revisit as a proper typed table once the Notification Engine
+  // (Phase 4/5) defines its categories.
+  notificationPreferences Json @default("{}")
+
+  // Per PRD Vol. I Ch. 5 (Dashboard module lists "Watchlists") and TAD
+  // Vol. III Ch. 3 (User Profile Module owns "User preferences" and
+  // "Personalization") - a simple list of symbols (e.g. "EUR/USD",
+  // "GBP/USD"), not a separate table, since this is personalization data
+  // scoped to one user, not a shared/relational entity of its own yet.
+  watchlistSymbols String[] @default([])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("user_profiles")
+}
