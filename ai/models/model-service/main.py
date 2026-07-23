@@ -7,6 +7,16 @@ from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import sys
+
+# Add the ai/ directory to Python's import path so we can import
+# orchestration, agents, and decision_engine from sibling folders.
+# Without this, Python only looks in ai/models/model-service/ and
+# can't find modules in ai/orchestration/, ai/agents/, etc.
+_ai_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+if _ai_root not in sys.path:
+    sys.path.insert(0, _ai_root)
+
 from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException
 from pydantic import BaseModel
