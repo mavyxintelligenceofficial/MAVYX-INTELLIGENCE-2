@@ -1,0 +1,153 @@
+# Mavyx Intelligence — Complete Docker Compose
+# Per Volume V Chapter 7: DevOps, Cloud Infrastructure & Deployment
+#
+# This file runs ALL services for local development and testing.
+# For production, see infrastructure/kubernetes/ (future).
+#
+# Usage:
+#   docker-compose up -d          # Start all services
+#   docker-compose logs -f        # Watch all logs
+#   docker-compose down           # Stop all services
+#   docker-compose ps             # Check status
+
+services:
+  # ─── Infrastructure ───────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: mavyx-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-mavyx}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mavyx_dev_password}
+      POSTGRES_DB: ${POSTGRES_DB:-mavyx_intelligence}
+    ports:
+      - "5432:5432"
+    volumes:
+      - mavyx_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-mavyx}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: mavyx-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ─── Backend Services (NestJS) ────────────────────────────────────
+  authentication-service:
+    build:
+      context: ./services/authentication-service
+      dockerfile: Dockerfile
+    container_name: mavyx-auth
+    restart: unless-stopped
+    ports:
+      - "4001:4001"
+    environment:
+      PORT: 4001
+      DATABASE_URL: postgresql://mavyx:mavyx_dev_password@postgres:5432/mavyx_intelligence
+      JWT_SECRET: ${JWT_SECRET:-dev_only_insecure_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: mavyx-user
+    restart: unless-stopped
+    ports:
+      - "4002:4002"
+    environment:
+      PORT: 4002
+      DATABASE_URL: postgresql://mavyx:mavyx_dev_password@postgres:5432/mavyx_intelligence
+      JWT_SECRET: ${JWT_SECRET:-dev_only_insecure_secret}
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  market-service:
+    build:
+      context: ./services/market-service
+      dockerfile: Dockerfile
+    container_name: mavyx-market
+    restart: unless-stopped
+    ports:
+      - "4003:4003"
+    environment:
+      PORT: 4003
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-dev_only_insecure_secret}
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: mavyx-gateway
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      PORT: 4000
+      AUTH_SERVICE_URL: http://authentication-service:4001
+      USER_SERVICE_URL: http://user-service:4002
+      MARKET_SERVICE_URL: http://market-service:4003
+      AI_SERVICE_URL: http://ai-service:4004
+      FRONTEND_URL: http://localhost:3000
+      JWT_SECRET: ${JWT_SECRET:-dev_only_insecure_secret}
+    depends_on:
+      - authentication-service
+      - user-service
+      - market-service
+      - ai-service
+
+  # ─── AI Service (Python/FastAPI) ──────────────────────────────────
+  ai-service:
+    build:
+      context: ./ai/models/model-service
+      dockerfile: Dockerfile
+    container_name: mavyx-ai
+    restart: unless-stopped
+    ports:
+      - "4004:4004"
+    environment:
+      PORT: 4004
+      ZAI_API_KEY: ${ZAI_API_KEY}
+      ZAI_MODEL: glm-4.5-flash
+      ZAI_BASE_URL: https://api.z.ai/api/paas/v4
+      JWT_SECRET: ${JWT_SECRET:-dev_only_insecure_secret}
+      DATABASE_URL: postgresql://mavyx:mavyx_dev_password@postgres:5432/mavyx_intelligence
+      MARKET_SERVICE_URL: http://market-service:4003
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # ─── Frontend (Next.js) ──────────────────────────────────────────
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    container_name: mavyx-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:4000
+    depends_on:
+      - api-gateway
+
+volumes:
+  mavyx_postgres_data:

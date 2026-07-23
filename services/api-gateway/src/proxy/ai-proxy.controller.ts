@@ -62,6 +62,18 @@ export class AiProxyController {
     }
   }
 
+  @Get('health/system')
+  async systemHealth() {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.aiServiceUrl}/health/system`),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   @Get('analyze/history')
   async analysisHistory(@Req() request: Request) {
     try {

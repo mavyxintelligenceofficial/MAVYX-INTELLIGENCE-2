@@ -133,6 +133,9 @@ export default function ProfilePage() {
           <Link href="/watchlist" className="block text-center text-sm text-slate-600 underline">
             My watchlist
           </Link>
+          <Link href="/health" className="block text-center text-sm text-slate-400 underline">
+            System Health
+          </Link>
         </div>
       </div>
     </main>

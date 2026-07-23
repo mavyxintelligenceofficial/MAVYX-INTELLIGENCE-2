@@ -60,7 +60,21 @@ class AnalyzeRequest(BaseModel):
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "model-service"}
+    return {
+        "status": "ok",
+        "service": "model-service",
+        "ai_provider": "zai",
+        "model": os.environ.get("ZAI_MODEL", "glm-4.5-flash"),
+        "version": "1.0.0",
+    }
+
+
+@app.get("/health/system")
+async def system_health():
+    """Check health of all Mavyx services (Vol. V Ch.7 §7.13)."""
+    from health_check import HealthChecker
+    checker = HealthChecker()
+    return await checker.check_all()
 
 
 @app.post("/generate", response_model=GenerateResponse)
