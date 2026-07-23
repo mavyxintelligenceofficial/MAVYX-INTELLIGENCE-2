@@ -74,18 +74,18 @@ async def generate(body: GenerateRequest, _user: dict = Depends(require_auth)):
 
 
 @app.post("/analyze")
-async def analyze(body: AnalyzeRequest, _user: dict = Depends(require_auth)):
+async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
     """Run the full AI analysis pipeline for a symbol.
 
     This endpoint:
     1. Fetches market data from market-service
     2. Runs all specialist agents in parallel
     3. Synthesizes results through the Executive Decision Engine
-    4. Returns a complete recommendation
+    4. Saves the result for history (Vol. IV §3.12: Decision Logging)
+    5. Returns a complete recommendation
 
     Per Volume IV §2.8: AI Task Lifecycle (12 stages).
     """
-    # Import here to avoid circular imports and lazy-load heavy modules
     from orchestration.orchestrator import AIOrchestrator
     from agents.specialists.technical_analysis import TechnicalAnalysisAgent
     from agents.specialists.market_structure import MarketStructureAgent
@@ -95,8 +95,8 @@ async def analyze(body: AnalyzeRequest, _user: dict = Depends(require_auth)):
     from agents.specialists.market_behavior import MarketBehaviorAgent
     from agents.specialists.recommendation import RecommendationAgent
     from market_data_fetcher import fetch_market_data
+    from analysis_store import AnalysisStore
 
-    # Instantiate all specialist agents
     agents = [
         TechnicalAnalysisAgent(),
         MarketStructureAgent(),
@@ -107,7 +107,6 @@ async def analyze(body: AnalyzeRequest, _user: dict = Depends(require_auth)):
         RecommendationAgent(),
     ]
 
-    # Create orchestrator with market data fetcher
     orchestrator = AIOrchestrator(
         provider=_provider,
         agents=agents,
@@ -120,11 +119,41 @@ async def analyze(body: AnalyzeRequest, _user: dict = Depends(require_auth)):
             timeframe=body.timeframe,
             model=body.model,
         )
+
+        # Save to analysis history (Vol. IV §3.12: Decision Logging)
+        user_id = user.get("sub", "unknown")
+        store = AnalysisStore()
+        analysis_id = store.save(user_id, result)
+        if analysis_id:
+            result["analysis_id"] = analysis_id
+
         return result
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}")
+
+
+@app.get("/analyze/history")
+async def analysis_history(user: dict = Depends(require_auth)):
+    """Retrieve the user's analysis history."""
+    from analysis_store import AnalysisStore
+
+    user_id = user.get("sub", "unknown")
+    store = AnalysisStore()
+    return store.get_history(user_id)
+
+
+@app.get("/analyze/{analysis_id}")
+async def get_analysis(analysis_id: str, user: dict = Depends(require_auth)):
+    """Retrieve a specific analysis by ID."""
+    from analysis_store import AnalysisStore
+
+    store = AnalysisStore()
+    result = store.get_by_id(analysis_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+    return result
 
 
 if __name__ == "__main__":

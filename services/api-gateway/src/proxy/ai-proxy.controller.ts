@@ -62,6 +62,34 @@ export class AiProxyController {
     }
   }
 
+  @Get('analyze/history')
+  async analysisHistory(@Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.aiServiceUrl}/analyze/history`, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  @Get('analyze/:id')
+  async getAnalysis(@Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.aiServiceUrl}/analyze/${request.params.id}`, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   private handleError(err: unknown): never {
     const axiosError = err as AxiosError<{ message?: string; detail?: string }>;
 

@@ -11,6 +11,10 @@ httpx>=0.27,<1
 # Z.ai / OpenAI-compatible SDK (primary provider)
 openai>=1.40,<2
 
+# Database (analysis history storage)
+sqlalchemy>=2.0,<3
+psycopg2-binary>=2.9,<3
+
 # Alternative providers (install as needed)
 # cerebras_cloud_sdk>=1.5,<2
 # anthropic>=0.34,<1
