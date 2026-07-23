@@ -6,8 +6,8 @@
 > history as authoritative if it disagrees with this file - this file wins.
 
 **Last updated:** 2026-07-23
-**Current phase:** Phase 4 — AI Intelligence Integration — IN PROGRESS
-**Current step:** Core AI pipeline built and ready for testing
+**Current phase:** Phase 5 — Advanced Intelligence Expansion — IN PROGRESS
+**Current step:** Memory, Knowledge, and Evaluation systems built
 
 ---
 
@@ -33,8 +33,19 @@ proving it.
   - [x] Step 2 - Frontend quote view (/market page) - VERIFIED in browser
   - [x] Step 3 - Frontend price chart (/market/chart page) - VERIFIED in browser
   - [x] Step 4 - Watchlist (/watchlist page, saved per user) - VERIFIED in browser
-- [ ] Phase 4 - AI Intelligence Integration (IN PROGRESS — see Section 8)
-- [ ] Phase 5 - Advanced Intelligence
+- [ ] Phase 4 - AI Intelligence Integration - COMPLETE
+  - [x] Z.ai provider integration (GLM-4.5-Flash)
+  - [x] 7 specialist agents built and tested
+  - [x] Executive Decision Engine
+  - [x] AI Orchestrator
+  - [x] Analysis history storage (Vol. IV §3.12)
+  - [x] Frontend AI Analysis page verified in browser
+- [ ] Phase 5 - Advanced Intelligence - IN PROGRESS
+  - [x] Memory System (Vol. IV §4.4)
+  - [x] Knowledge Intelligence Layer (Vol. IV §4.5)
+  - [x] Evaluation Framework (Vol. IV Chapter 5)
+  - [ ] RAG system (future enhancement)
+  - [ ] Knowledge graphs (future enhancement)
 - [ ] Phase 6 - Production Readiness
 
 ## 3. Current State - What Actually Exists Right Now
