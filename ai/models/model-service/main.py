@@ -96,6 +96,8 @@ async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
     from agents.specialists.recommendation import RecommendationAgent
     from market_data_fetcher import fetch_market_data
     from analysis_store import AnalysisStore
+    from memory.memory_manager import MemoryManager
+    from knowledge.knowledge_base import KnowledgeBase
 
     agents = [
         TechnicalAnalysisAgent(),
@@ -107,10 +109,16 @@ async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
         RecommendationAgent(),
     ]
 
+    # Initialize Phase 5 systems (Vol. IV §4.4-4.5)
+    memory_manager = MemoryManager(store=AnalysisStore())
+    knowledge_base = KnowledgeBase()
+
     orchestrator = AIOrchestrator(
         provider=_provider,
         agents=agents,
         market_fetcher=fetch_market_data,
+        memory_manager=memory_manager,
+        knowledge_base=knowledge_base,
     )
 
     try:

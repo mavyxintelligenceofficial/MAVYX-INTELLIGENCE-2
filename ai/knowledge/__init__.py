@@ -1,3 +1,2 @@
-# Mavyx Intelligence — Knowledge Intelligence
-# Per Volume IV: Knowledge Intelligence Layer
-# Status: Phase 5
+# Mavyx Intelligence — Knowledge Intelligence Layer
+# Per Volume IV §4.5: Knowledge Intelligence Layer

@@ -24,6 +24,8 @@ from typing import Any, Optional
 from agents.agent_runner import AgentRunner
 from agents.base_agent import AgentOutput
 from decision_engine.engine import ExecutiveDecisionEngine
+from memory.memory_manager import MemoryManager
+from knowledge.knowledge_base import KnowledgeBase
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +43,8 @@ class AIOrchestrator:
         provider: Any,
         agents: list,
         market_fetcher: Any = None,
+        memory_manager: MemoryManager = None,
+        knowledge_base: KnowledgeBase = None,
     ):
         """
         Args:
@@ -48,11 +52,15 @@ class AIOrchestrator:
             agents: List of specialist agent instances
             market_fetcher: Optional callable to fetch market data.
                            signature: async (symbol, interval) -> dict
+            memory_manager: Optional memory system for cross-analysis context
+            knowledge_base: Optional knowledge system for domain expertise
         """
         self.provider = provider
         self.runner = AgentRunner(agents)
         self.decision_engine = ExecutiveDecisionEngine(provider)
         self.market_fetcher = market_fetcher
+        self.memory = memory_manager or MemoryManager()
+        self.knowledge = knowledge_base or KnowledgeBase()
 
     async def analyze(
         self,
@@ -84,6 +92,19 @@ class AIOrchestrator:
         # Stage 1-2: Assemble market context
         if market_data is None:
             market_data = await self._fetch_market_data(symbol, timeframe)
+
+        # Enrich with memory context (Vol. IV §4.4: Short-Term Memory)
+        learning_context = self.memory.get_learning_context(symbol)
+        if learning_context:
+            market_data["memory_context"] = learning_context
+            logger.info(f"Added memory context for {symbol}")
+
+        # Enrich with knowledge context (Vol. IV §4.5: Knowledge Intelligence)
+        # Each agent receives domain-specific knowledge via the orchestrator
+        for agent in self.runner.agents:
+            agent._knowledge_context = self.knowledge.get_agent_knowledge(
+                agent.category
+            )
 
         # Stages 3-5: Run specialist agents in parallel
         agent_results = await self.runner.run_all(
@@ -139,6 +160,9 @@ class AIOrchestrator:
             f"=== Pipeline complete: {executive_result['recommendation']} "
             f"({executive_result['confidence']}%) in {elapsed_ms}ms ==="
         )
+
+        # Store in short-term memory (Vol. IV §4.4)
+        self.memory.store_analysis(symbol, executive_result)
 
         return executive_result
 

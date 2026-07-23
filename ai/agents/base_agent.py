@@ -150,6 +150,16 @@ class BaseAgent(ABC):
             # Build the prompt
             user_prompt = self.build_user_prompt(symbol, market_data, timeframe)
 
+            # Inject knowledge context if available (Vol. IV §4.5)
+            knowledge = getattr(self, '_knowledge_context', '')
+            if knowledge:
+                user_prompt = f"Domain Knowledge Reference:\n{knowledge}\n\n{user_prompt}"
+
+            # Inject memory context if available (Vol. IV §4.4)
+            memory_context = market_data.get('memory_context', '')
+            if memory_context:
+                user_prompt = f"{memory_context}\n\n{user_prompt}"
+
             # Call the AI provider
             raw_response = await provider.generate(
                 system_prompt=self.system_prompt,
