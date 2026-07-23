@@ -2,85 +2,72 @@
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/Button';
 import { login } from '@/features/auth/api';
 import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
 
 export default function LoginPage() {
   const router = useRouter();
-  const setSession = useAuthStore((state) => state.setSession);
-
+  const { setSession } = useAuthStore();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    setError(null);
-    setIsLoading(true);
-
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setIsLoading(true); setError(null);
     try {
-      const { user, accessToken } = await login(email, password);
-      setSession(user, accessToken);
+      const data = await login({ email, password });
+      setSession(data.user, data.access_token);
       router.push('/profile');
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Something went wrong. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+      setError(err instanceof ApiError ? err.message : 'Login failed.');
+    } finally { setIsLoading(false); }
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4">
-        <h1 className="text-2xl font-semibold text-slate-900">Log in</h1>
+    <main className="relative min-h-screen flex items-center justify-center">
+      <div className="mavyx-bg" /><div className="mavyx-grid" />
+      <div className="mavyx-orb mavyx-orb-gold" />
 
-        {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        )}
-
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm font-medium text-slate-700">
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
+      <div className="relative z-10 w-full max-w-sm px-6 mavyx-page-enter">
+        {/* Logo */}
+        <div className="text-center mb-10">
+          <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={120} height={48} priority className="mx-auto mb-4 drop-shadow-[0_0_30px_rgba(201,168,76,0.3)]" />
+          <p className="font-orbitron text-[10px] tracking-[0.3em] text-dim">SIGN IN</p>
         </div>
 
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm font-medium text-slate-700">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-        </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="mavyx-glass p-6 space-y-5">
+          {error && (
+            <div className="p-3 rounded-lg text-sm font-rajdhani" style={{ background: 'rgba(255,45,85,0.08)', color: '#FF5252', border: '1px solid rgba(255,45,85,0.15)' }}>
+              {error}
+            </div>
+          )}
 
-        <Button type="submit" isLoading={isLoading}>
-          Log in
-        </Button>
+          <div>
+            <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="mavyx-input" required />
+          </div>
 
-        <p className="text-center text-sm text-slate-600">
-          No account yet?{' '}
-          <Link href="/signup" className="font-medium text-slate-900 underline">
-            Sign up
-          </Link>
+          <div>
+            <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="mavyx-input" required />
+          </div>
+
+          <button type="submit" disabled={isLoading} className="mavyx-btn mavyx-btn-gold w-full">
+            {isLoading ? 'AUTHENTICATING...' : 'ACCESS PLATFORM'}
+          </button>
+        </form>
+
+        <p className="text-center mt-6 font-rajdhani text-sm text-dim">
+          No account?{' '}
+          <Link href="/signup" className="text-gold hover:underline">Create one</Link>
         </p>
-      </form>
+      </div>
     </main>
   );
 }
