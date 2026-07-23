@@ -2,6 +2,269 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ═══════════════════════════════════════════════════════════════
+   MAVYX INTELLIGENCE — Premium Dark Theme with Gold Accents
+   Brand: Dark background, gold (#C9A84C) accents, metallic finish
+   ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand Colors */
+  --mavyx-gold: #C9A84C;
+  --mavyx-gold-light: #E8D48B;
+  --mavyx-gold-dark: #A08030;
+  --mavyx-dark: #0A0A0F;
+  --mavyx-dark-card: #12121A;
+  --mavyx-dark-surface: #1A1A25;
+  --mavyx-dark-border: #2A2A3A;
+  --mavyx-text: #E8E8F0;
+  --mavyx-text-muted: #8888A0;
+  --mavyx-green: #00C853;
+  --mavyx-red: #FF1744;
+  --mavyx-amber: #FFB300;
+}
+
+/* ─── Base Styles ────────────────────────────────────────────── */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  background-color: #f8fafc;
+  background-color: var(--mavyx-dark);
+  color: var(--mavyx-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Scrollbar ──────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--mavyx-dark);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--mavyx-dark-border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--mavyx-gold-dark);
+}
+
+/* ─── Premium Card ───────────────────────────────────────────── */
+.mavyx-card {
+  background: var(--mavyx-dark-card);
+  border: 1px solid var(--mavyx-dark-border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.mavyx-card:hover {
+  border-color: rgba(201, 168, 76, 0.3);
+  box-shadow: 0 4px 24px rgba(201, 168, 76, 0.08);
+}
+
+/* ─── Gold Button ────────────────────────────────────────────── */
+.mavyx-btn-gold {
+  background: linear-gradient(135deg, var(--mavyx-gold), var(--mavyx-gold-dark));
+  color: var(--mavyx-dark);
+  font-weight: 600;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.mavyx-btn-gold:hover {
+  background: linear-gradient(135deg, var(--mavyx-gold-light), var(--mavyx-gold));
+  box-shadow: 0 4px 16px rgba(201, 168, 76, 0.4);
+  transform: translateY(-1px);
+}
+
+/* ─── Dark Button ────────────────────────────────────────────── */
+.mavyx-btn-dark {
+  background: var(--mavyx-dark-surface);
+  color: var(--mavyx-text);
+  font-weight: 500;
+  padding: 0.75rem 2rem;
+  border-radius: 8px;
+  border: 1px solid var(--mavyx-dark-border);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.mavyx-btn-dark:hover {
+  border-color: var(--mavyx-gold);
+  color: var(--mavyx-gold);
+}
+
+/* ─── Input Fields ───────────────────────────────────────────── */
+.mavyx-input {
+  background: var(--mavyx-dark-surface);
+  border: 1px solid var(--mavyx-dark-border);
+  color: var(--mavyx-text);
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  width: 100%;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+.mavyx-input:focus {
+  outline: none;
+  border-color: var(--mavyx-gold);
+  box-shadow: 0 0 0 2px rgba(201, 168, 76, 0.2);
+}
+
+.mavyx-input::placeholder {
+  color: var(--mavyx-text-muted);
+}
+
+/* ─── Gold Text ──────────────────────────────────────────────── */
+.mavyx-gold {
+  color: var(--mavyx-gold);
+}
+
+.mavyx-gold-gradient {
+  background: linear-gradient(135deg, var(--mavyx-gold-light), var(--mavyx-gold), var(--mavyx-gold-dark));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Recommendation Cards ───────────────────────────────────── */
+.mavyx-rec-buy {
+  background: linear-gradient(135deg, rgba(0, 200, 83, 0.1), rgba(0, 200, 83, 0.05));
+  border: 1px solid rgba(0, 200, 83, 0.3);
+  border-radius: 12px;
+}
+
+.mavyx-rec-sell {
+  background: linear-gradient(135deg, rgba(255, 23, 68, 0.1), rgba(255, 23, 68, 0.05));
+  border: 1px solid rgba(255, 23, 68, 0.3);
+  border-radius: 12px;
+}
+
+.mavyx-rec-wait {
+  background: linear-gradient(135deg, rgba(255, 179, 0, 0.1), rgba(255, 179, 0, 0.05));
+  border: 1px solid rgba(255, 179, 0, 0.3);
+  border-radius: 12px;
+}
+
+.mavyx-rec-no-trade {
+  background: var(--mavyx-dark-card);
+  border: 1px solid var(--mavyx-dark-border);
+  border-radius: 12px;
+}
+
+/* ─── Confidence Bar ─────────────────────────────────────────── */
+.mavyx-confidence-bar {
+  height: 6px;
+  background: var(--mavyx-dark-surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.mavyx-confidence-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.8s ease;
+}
+
+.mavyx-confidence-high {
+  background: linear-gradient(90deg, var(--mavyx-gold-dark), var(--mavyx-gold-light));
+}
+
+.mavyx-confidence-medium {
+  background: linear-gradient(90deg, var(--mavyx-amber), #FFD54F);
+}
+
+.mavyx-confidence-low {
+  background: linear-gradient(90deg, var(--mavyx-red), #FF5252);
+}
+
+/* ─── Logo ───────────────────────────────────────────────────── */
+.mavyx-logo {
+  height: 40px;
+  width: auto;
+}
+
+.mavyx-logo-large {
+  height: 60px;
+  width: auto;
+}
+
+/* ─── Animations ─────────────────────────────────────────────── */
+@keyframes mavyx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes mavyx-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.mavyx-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--mavyx-dark-surface) 25%,
+    var(--mavyx-dark-border) 50%,
+    var(--mavyx-dark-surface) 75%
+  );
+  background-size: 200% 100%;
+  animation: mavyx-shimmer 1.5s infinite;
+}
+
+/* ─── Loading Spinner ────────────────────────────────────────── */
+.mavyx-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--mavyx-dark-border);
+  border-top-color: var(--mavyx-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ─── Agent Signal Badges ────────────────────────────────────── */
+.mavyx-badge-bullish {
+  background: rgba(0, 200, 83, 0.15);
+  color: var(--mavyx-green);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mavyx-badge-bearish {
+  background: rgba(255, 23, 68, 0.15);
+  color: var(--mavyx-red);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.mavyx-badge-neutral {
+  background: rgba(136, 136, 160, 0.15);
+  color: var(--mavyx-text-muted);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
 }

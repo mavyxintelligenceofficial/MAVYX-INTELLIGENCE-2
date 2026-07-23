@@ -2,8 +2,8 @@
 
 import { useState, useEffect, FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/Button';
 import { getProfile, updateProfile } from '@/features/profile/api';
 import { Profile } from '@/features/profile/types';
 import { useAuthStore } from '@/features/auth/store';
@@ -26,12 +26,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isHydrated) return;
-
     if (!token) {
       router.replace('/login');
       return;
     }
-
     getProfile(token)
       .then((data) => {
         setProfile(data);
@@ -46,11 +44,9 @@ export default function ProfilePage() {
   async function handleSave(event: FormEvent) {
     event.preventDefault();
     if (!token) return;
-
     setIsSaving(true);
     setError(null);
     setSaved(false);
-
     try {
       const updated = await updateProfile(token, { displayName });
       setProfile(updated);
@@ -69,73 +65,116 @@ export default function ProfilePage() {
 
   if (!isHydrated || isLoading) {
     return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-slate-600">Loading your profile...</p>
+      <main className="flex min-h-screen items-center justify-center" style={{ background: '#0A0A0F' }}>
+        <div className="mavyx-spinner" />
       </main>
     );
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-6">
+    <main className="min-h-screen p-6" style={{ background: '#0A0A0F' }}>
+      <div className="mx-auto max-w-md space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Your profile</h1>
-          <button onClick={handleLogout} className="text-sm text-slate-500 underline">
+          <div className="flex items-center gap-3">
+            <Image
+              src="/brand/Mavyx GOLD VERSION.png"
+              alt="Mavyx"
+              width={32}
+              height={32}
+            />
+            <h1 className="text-xl font-semibold" style={{ color: '#E8E8F0' }}>
+              Profile
+            </h1>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="text-sm transition-colors hover:text-amber-400"
+            style={{ color: '#8888A0' }}
+          >
             Log out
           </button>
         </div>
 
-        {profile && (
-          <p className="text-sm text-slate-600">
-            Role: <span className="font-medium">{profile.role}</span>
-          </p>
-        )}
+        {/* Profile Card */}
+        <div className="mavyx-card">
+          {profile && (
+            <div className="flex items-center gap-4 mb-6">
+              <div
+                className="w-14 h-14 rounded-full flex items-center justify-center text-lg font-bold"
+                style={{
+                  background: 'linear-gradient(135deg, #C9A84C, #A08030)',
+                  color: '#0A0A0F',
+                }}
+              >
+                {(profile.displayName || profile.role || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p className="font-semibold" style={{ color: '#E8E8F0' }}>
+                  {profile.displayName || 'User'}
+                </p>
+                <p className="text-xs" style={{ color: '#8888A0' }}>
+                  {profile.role}
+                </p>
+              </div>
+            </div>
+          )}
 
-        {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        )}
-        {saved && (
-          <p className="rounded-md bg-green-50 px-3 py-2 text-sm text-green-700">
-            Saved.
-          </p>
-        )}
+          {error && (
+            <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(255,23,68,0.1)', color: '#FF5252', border: '1px solid rgba(255,23,68,0.2)' }}>
+              {error}
+            </div>
+          )}
+          {saved && (
+            <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'rgba(0,200,83,0.1)', color: '#00C853', border: '1px solid rgba(0,200,83,0.2)' }}>
+              Saved.
+            </div>
+          )}
 
-        <form onSubmit={handleSave} className="space-y-4">
-          <div>
-            <label htmlFor="displayName" className="mb-1 block text-sm font-medium text-slate-700">
-              Display name
-            </label>
-            <input
-              id="displayName"
-              type="text"
-              value={displayName}
-              onChange={(e) => {
-                setDisplayName(e.target.value);
-                setSaved(false);
-              }}
-              maxLength={100}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
+          <form onSubmit={handleSave} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium mb-2" style={{ color: '#8888A0' }}>
+                Display Name
+              </label>
+              <input
+                type="text"
+                value={displayName}
+                onChange={(e) => { setDisplayName(e.target.value); setSaved(false); }}
+                maxLength={100}
+                className="mavyx-input"
+                placeholder="Enter your name"
+              />
+            </div>
+            <button type="submit" disabled={isSaving} className="mavyx-btn-gold w-full">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </form>
+        </div>
 
-          <Button type="submit" isLoading={isSaving}>
-            Save changes
-          </Button>
-        </form>
-
-        <div className="flex flex-col gap-2">
-          <Link href="/analysis" className="block text-center text-sm font-medium text-white bg-slate-900 rounded-md px-4 py-2 hover:bg-slate-700">
-            🤖 AI Analysis
-          </Link>
-          <Link href="/market" className="block text-center text-sm text-slate-600 underline">
-            View a market quote
-          </Link>
-          <Link href="/watchlist" className="block text-center text-sm text-slate-600 underline">
-            My watchlist
-          </Link>
-          <Link href="/health" className="block text-center text-sm text-slate-400 underline">
-            System Health
-          </Link>
+        {/* Navigation Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { href: '/analysis', icon: '🤖', label: 'AI Analysis', desc: 'Run intelligence' },
+            { href: '/market', icon: '📈', label: 'Market', desc: 'Live quotes' },
+            { href: '/watchlist', icon: '👁️', label: 'Watchlist', desc: 'Your pairs' },
+            { href: '/health', icon: '💚', label: 'System', desc: 'Health status' },
+          ].map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="mavyx-card text-center space-y-2 hover:border-amber-500/30 transition-all"
+            >
+              <span className="text-2xl">{item.icon}</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#E8E8F0' }}>
+                  {item.label}
+                </p>
+                <p className="text-xs" style={{ color: '#8888A0' }}>
+                  {item.desc}
+                </p>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </main>
