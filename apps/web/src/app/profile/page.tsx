@@ -123,9 +123,17 @@ export default function ProfilePage() {
           </Button>
         </form>
 
-        <Link href="/market" className="block text-center text-sm text-slate-600 underline">
-          View a market quote
-        </Link>
+        <div className="flex flex-col gap-2">
+          <Link href="/analysis" className="block text-center text-sm font-medium text-white bg-slate-900 rounded-md px-4 py-2 hover:bg-slate-700">
+            🤖 AI Analysis
+          </Link>
+          <Link href="/market" className="block text-center text-sm text-slate-600 underline">
+            View a market quote
+          </Link>
+          <Link href="/watchlist" className="block text-center text-sm text-slate-600 underline">
+            My watchlist
+          </Link>
+        </div>
       </div>
     </main>
   );
