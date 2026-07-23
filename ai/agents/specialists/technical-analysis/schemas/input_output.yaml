@@ -1,0 +1,51 @@
+# Technical Analysis Agent — Input/Output Schemas
+# Per Volume V §5.5: Schemas Directory
+
+input_schema:
+  type: object
+  required: [symbol, market_data, timeframe]
+  properties:
+    symbol:
+      type: string
+      example: "EUR/USD"
+    market_data:
+      type: object
+      properties:
+        price:
+          type: object
+          properties:
+            symbol: { type: string }
+            price: { type: number }
+            timestamp: { type: string }
+        candles:
+          type: array
+          items:
+            type: object
+            properties:
+              timestamp: { type: string }
+              open: { type: number }
+              high: { type: number }
+              low: { type: number }
+              close: { type: number }
+    timeframe:
+      type: string
+      enum: ["1h", "4h", "1d"]
+      default: "4h"
+
+output_schema:
+  type: object
+  required: [agent_id, signal, confidence, summary]
+  properties:
+    agent_id: { type: string, const: "technical-analysis" }
+    timestamp: { type: string, format: date-time }
+    symbol: { type: string }
+    timeframe: { type: string }
+    summary: { type: string }
+    signal: { type: string, enum: ["bullish", "bearish", "neutral"] }
+    confidence: { type: integer, minimum: 0, maximum: 100 }
+    key_findings: { type: array, items: { type: string } }
+    evidence: { type: array, items: { type: string } }
+    risk_assessment: { type: string }
+    assumptions: { type: array, items: { type: string } }
+    limitations: { type: array, items: { type: string } }
+    suggested_actions: { type: array, items: { type: string } }
