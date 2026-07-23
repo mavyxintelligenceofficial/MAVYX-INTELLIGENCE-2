@@ -39,5 +39,9 @@ coverage/
 *.sqlite
 *.sqlite3
 
+# Backups (contain sensitive data)
+infrastructure/backups/*.sql
+infrastructure/backups/*.sql.gz
+
 # Docker
 docker-compose.override.yml
