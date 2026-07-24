@@ -108,17 +108,26 @@ async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
     from agents.specialists.fundamentals import FundamentalsAgent
     from agents.specialists.market_behavior import MarketBehaviorAgent
     from agents.specialists.recommendation import RecommendationAgent
+    from agents.specialists.liquidity import LiquidityAgent
+    from agents.specialists.historical import HistoricalAgent
+    from agents.specialists.psychology import PsychologyAgent
+    from agents.specialists.devils_advocate import DevilsAdvocateAgent
     from market_data_fetcher import fetch_market_data
     from analysis_store import AnalysisStore
     from memory.memory_manager import MemoryManager
     from knowledge.knowledge_base import KnowledgeBase
 
+    # Per MEIDS Chapter 3: 9 specialist agents
     agents = [
         TechnicalAnalysisAgent(),
         MarketStructureAgent(),
-        SentimentAgent(),
-        RiskAssessmentAgent(),
         FundamentalsAgent(),
+        SentimentAgent(),
+        LiquidityAgent(),
+        HistoricalAgent(),
+        RiskAssessmentAgent(),
+        PsychologyAgent(),
+        DevilsAdvocateAgent(),
         MarketBehaviorAgent(),
         RecommendationAgent(),
     ]

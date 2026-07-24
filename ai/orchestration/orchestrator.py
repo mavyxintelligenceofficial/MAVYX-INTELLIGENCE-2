@@ -1,20 +1,10 @@
 """
 AI Orchestrator — the main entry point for the intelligence pipeline.
 
-Per Volume IV:
-- Section 2.2: AI Ecosystem Overview
-- Section 2.8: AI Task Lifecycle (12 stages)
-- Level 3 — Executive Intelligence
+Per MEIDS Chapter 8 §8.4: AI Orchestration Pipeline
+Per MEIDS Chapter 3 §3.2: Intelligence Workflow
 
-This is the single entry point that:
-1. Receives an analysis request (symbol, timeframe)
-2. Fetches market data from market-service
-3. Runs all specialist agents in parallel
-4. Passes results to the Executive Decision Engine
-5. Returns the final recommendation
-
-The orchestrator coordinates but does NOT analyze — analysis is
-delegated to specialist agents (Vol. IV §2.10: Agent Independence).
+This is the conductor. Not an analyst.
 """
 
 import logging
@@ -24,6 +14,9 @@ from typing import Any, Optional
 from agents.agent_runner import AgentRunner
 from agents.base_agent import AgentOutput
 from decision_engine.engine import ExecutiveDecisionEngine
+from decision_engine.evidence_engine import EvidenceEngine
+from decision_engine.confidence_engine import ConfidenceEngine
+from decision_engine.contradiction_engine import ContradictionEngine
 from memory.memory_manager import MemoryManager
 from knowledge.knowledge_base import KnowledgeBase
 
@@ -33,116 +26,97 @@ logger = logging.getLogger(__name__)
 class AIOrchestrator:
     """Coordinates the full AI intelligence pipeline.
 
-    Usage:
-        orchestrator = AIOrchestrator(provider, agents, market_fetcher)
-        result = await orchestrator.analyze("EUR/USD", "4h")
+    Per MEIDS §3.2 — Intelligence Workflow:
+    User Request → Market Data → Data Validation → Distribution →
+    Specialist Agents → Evidence Collection → Conflict Detection →
+    Risk Evaluation → Historical Comparison → Executive Decision →
+    Executive Brief → Memory → Journal
     """
 
-    def __init__(
-        self,
-        provider: Any,
-        agents: list,
-        market_fetcher: Any = None,
-        memory_manager: MemoryManager = None,
-        knowledge_base: KnowledgeBase = None,
-    ):
-        """
-        Args:
-            provider: AI provider (ModelProvider instance from model-service)
-            agents: List of specialist agent instances
-            market_fetcher: Optional callable to fetch market data.
-                           signature: async (symbol, interval) -> dict
-            memory_manager: Optional memory system for cross-analysis context
-            knowledge_base: Optional knowledge system for domain expertise
-        """
+    def __init__(self, provider, agents, market_fetcher=None,
+                 memory_manager=None, knowledge_base=None):
         self.provider = provider
         self.runner = AgentRunner(agents)
         self.decision_engine = ExecutiveDecisionEngine(provider)
+        self.evidence_engine = EvidenceEngine()
+        self.confidence_engine = ConfidenceEngine()
+        self.contradiction_engine = ContradictionEngine()
         self.market_fetcher = market_fetcher
         self.memory = memory_manager or MemoryManager()
         self.knowledge = knowledge_base or KnowledgeBase()
 
-    async def analyze(
-        self,
-        symbol: str,
-        timeframe: str = "4h",
-        market_data: Optional[dict[str, Any]] = None,
-        model: Optional[str] = None,
-    ) -> dict[str, Any]:
-        """Run the full analysis pipeline for a symbol.
-
-        Per Vol. IV §2.8 AI Task Lifecycle:
-        Stage 1: Task created
-        Stage 2: Market context assembled
-        Stage 3: Relevant specialists identified (all agents)
-        Stage 4: Tasks distributed (parallel execution)
-        Stage 5: Independent analysis completed
-        Stage 6: Results validated
-        Stage 7: Evidence aggregated
-        Stage 8: Executive review
-        Stage 9: Recommendation generated
-        Stage 10: Explanation produced
-        Stage 11: Results stored
-        Stage 12: Recommendation delivered
-        """
+    async def analyze(self, symbol, timeframe="4h", market_data=None, model=None):
+        """Run the full analysis pipeline."""
         start_time = time.time()
-
         logger.info(f"=== Analysis Pipeline: {symbol} ({timeframe}) ===")
 
         # Stage 1-2: Assemble market context
         if market_data is None:
             market_data = await self._fetch_market_data(symbol, timeframe)
 
-        # Enrich with memory context (Vol. IV §4.4: Short-Term Memory)
+        # Enrich with memory context
         learning_context = self.memory.get_learning_context(symbol)
         if learning_context:
             market_data["memory_context"] = learning_context
-            logger.info(f"Added memory context for {symbol}")
 
-        # Enrich with knowledge context (Vol. IV §4.5: Knowledge Intelligence)
-        # Each agent receives domain-specific knowledge via the orchestrator
+        # Enrich agents with knowledge
         for agent in self.runner.agents:
-            agent._knowledge_context = self.knowledge.get_agent_knowledge(
-                agent.category
-            )
+            agent._knowledge_context = self.knowledge.get_agent_knowledge(agent.category)
 
-        # Stages 3-5: Run specialist agents in parallel
-        agent_results = await self.runner.run_all(
-            provider=self.provider,
-            symbol=symbol,
-            market_data=market_data,
-            timeframe=timeframe,
-            model=model,
+        # Stage 3-5: Run specialist agents (excluding Devil's Advocate initially)
+        primary_agents = [a for a in self.runner.agents if a.name != "devils-advocate" and a.name != "recommendation"]
+        primary_runner = AgentRunner(primary_agents)
+        primary_results = await primary_runner.run_all(
+            self.provider, symbol, market_data, timeframe, model
         )
 
-        # Stages 6-7: Validate and aggregate
-        valid_results = [r for r in agent_results if r.confidence > 0]
-        logger.info(
-            f"Valid agent results: {len(valid_results)}/{len(agent_results)}"
-        )
+        valid_results = [r for r in primary_results if r.confidence > 0]
+        logger.info(f"Primary agents: {len(valid_results)}/{len(primary_results)} valid")
 
-        # Pass agent results into market_data for the recommendation agent
+        # Stage 5b: Run Devil's Advocate with all primary results
         market_data_with_results = {
             **market_data,
             "agent_results": [r.to_dict() for r in valid_results],
         }
 
-        # Run the recommendation agent with all other agent results
-        recommendation_results = await self.runner.run_subset(
-            agent_names=["recommendation"],
-            provider=self.provider,
-            symbol=symbol,
-            market_data=market_data_with_results,
-            timeframe=timeframe,
-            model=model,
+        da_results = await self.runner.run_subset(
+            ["devils-advocate"], self.provider, symbol,
+            market_data_with_results, timeframe, model
         )
 
-        # Combine all results
-        all_results = valid_results + [
-            r for r in recommendation_results if r.confidence > 0
-        ]
+        # Combine primary + Devil's Advocate
+        all_specialist_results = valid_results + [r for r in da_results if r.confidence > 0]
 
-        # Stages 8-10: Executive synthesis
+        # Stage 6: Evidence Engine — organize all intelligence
+        evidence_summary = self.evidence_engine.process(
+            [r.to_dict() for r in all_specialist_results]
+        )
+        logger.info(f"Evidence: {evidence_summary['total_evidence']} pieces, "
+                     f"quality={evidence_summary['overall_evidence_quality']}")
+
+        # Stage 7: Contradiction Detection
+        contradictions = self.contradiction_engine.detect(
+            [r.to_dict() for r in all_specialist_results]
+        )
+        logger.info(f"Contradictions: {contradictions['total_contradictions']}, "
+                     f"level={contradictions['contradiction_level']}")
+
+        # Stage 8: Confidence Engine — calculate evidence-based confidence
+        confidence_result = self.confidence_engine.calculate(
+            [r.to_dict() for r in all_specialist_results],
+            evidence_summary,
+        )
+        logger.info(f"Confidence: {confidence_result['overall_confidence']}%")
+
+        # Stage 9: Run Recommendation Agent with full context
+        recommendation_results = await self.runner.run_subset(
+            ["recommendation"], self.provider, symbol,
+            market_data_with_results, timeframe, model
+        )
+
+        all_results = all_specialist_results + [r for r in recommendation_results if r.confidence > 0]
+
+        # Stage 10: Executive Decision Engine — final synthesis
         executive_result = await self.decision_engine.synthesize(
             symbol=symbol,
             timeframe=timeframe,
@@ -150,36 +124,33 @@ class AIOrchestrator:
             model=model,
         )
 
-        # Add metadata
-        elapsed_ms = round((time.time() - start_time) * 1000)
-        executive_result["processing_time_ms"] = elapsed_ms
-        executive_result["total_agents"] = len(agent_results)
-        executive_result["successful_agents"] = len(valid_results)
-
-        logger.info(
-            f"=== Pipeline complete: {executive_result['recommendation']} "
-            f"({executive_result['confidence']}%) in {elapsed_ms}ms ==="
+        # Stage 11: Enrich with engines
+        executive_result["evidence_summary"] = evidence_summary
+        executive_result["contradictions"] = contradictions
+        executive_result["confidence_breakdown"] = confidence_result
+        executive_result["confidence"] = confidence_result["overall_confidence"]
+        executive_result["agent_consensus"] = self.confidence_engine.get_consensus(
+            [r.to_dict() for r in all_specialist_results]
         )
 
-        # Store in short-term memory (Vol. IV §4.4)
+        # Metadata
+        elapsed_ms = round((time.time() - start_time) * 1000)
+        executive_result["processing_time_ms"] = elapsed_ms
+        executive_result["total_agents"] = len(all_results)
+        executive_result["successful_agents"] = len([r for r in all_results if r.confidence > 0])
+
+        logger.info(f"=== Pipeline complete: {executive_result.get('recommendation', 'unknown')} "
+                     f"({executive_result['confidence']}%) in {elapsed_ms}ms ===")
+
+        # Stage 12: Store in memory
         self.memory.store_analysis(symbol, executive_result)
 
         return executive_result
 
-    async def _fetch_market_data(
-        self, symbol: str, timeframe: str
-    ) -> dict[str, Any]:
-        """Fetch market data from the market service.
-
-        If no market_fetcher is configured, returns empty data.
-        The agents will work with whatever data is available.
-        """
+    async def _fetch_market_data(self, symbol, timeframe):
         if self.market_fetcher is None:
-            logger.warning(
-                "No market fetcher configured — agents will work without data"
-            )
+            logger.warning("No market fetcher configured")
             return {"price": {}, "candles": []}
-
         try:
             return await self.market_fetcher(symbol, timeframe)
         except Exception as e:
