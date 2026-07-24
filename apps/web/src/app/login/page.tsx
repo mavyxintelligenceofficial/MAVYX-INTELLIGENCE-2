@@ -8,6 +8,12 @@ import { login } from '@/features/auth/api';
 import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
 
+/**
+ * Login Page — Per MEIDS §6.4
+ * "Login should communicate trust"
+ * Centered login card, large logo, security notice, no distractions
+ */
+
 export default function LoginPage() {
   const router = useRouter();
   const { setSession } = useAuthStore();
@@ -22,50 +28,61 @@ export default function LoginPage() {
     try {
       const data = await login({ email, password });
       setSession(data.user, data.access_token);
-      router.push('/profile');
+      router.push('/workspace');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed.');
     } finally { setIsLoading(false); }
   }
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center">
-      <div className="mavyx-bg" /><div className="mavyx-grid" />
-      <div className="mavyx-orb mavyx-orb-gold" />
-
-      <div className="relative z-10 w-full max-w-sm px-6 mavyx-page-enter">
+    <main style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-primary)',
+    }}>
+      <div style={{ width: 360, padding: '0 24px' }}>
         {/* Logo */}
-        <div className="text-center mb-10">
-          <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={120} height={48} priority className="mx-auto mb-4 drop-shadow-[0_0_30px_rgba(201,168,76,0.3)]" />
-          <p className="font-orbitron text-[10px] tracking-[0.3em] text-dim">SIGN IN</p>
+        <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={120} height={48} priority
+            style={{ marginBottom: 16, opacity: 0.9 }} />
+          <p className="text-label" style={{ color: 'var(--text-tertiary)', letterSpacing: '0.2em' }}>Sign In</p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="mavyx-glass p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="mavyx-card" style={{ padding: 24 }}>
           {error && (
-            <div className="p-3 rounded-lg text-sm font-rajdhani" style={{ background: 'rgba(255,45,85,0.08)', color: '#FF5252', border: '1px solid rgba(255,45,85,0.15)' }}>
+            <div style={{ marginBottom: 16, padding: '8px 12px', background: 'var(--red-dim)', border: '1px solid rgba(255,59,48,0.2)', borderRadius: 4, fontSize: 12, color: 'var(--red)' }}>
               {error}
             </div>
           )}
 
-          <div>
-            <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Email</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" className="mavyx-input" required />
+          <div style={{ marginBottom: 16 }}>
+            <label className="text-label" style={{ display: 'block', marginBottom: 6 }}>Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com" className="mavyx-input" required />
           </div>
 
-          <div>
-            <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" className="mavyx-input" required />
+          <div style={{ marginBottom: 24 }}>
+            <label className="text-label" style={{ display: 'block', marginBottom: 6 }}>Password</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              placeholder="••••••••••••" className="mavyx-input" required />
           </div>
 
-          <button type="submit" disabled={isLoading} className="mavyx-btn mavyx-btn-gold w-full">
-            {isLoading ? 'AUTHENTICATING...' : 'ACCESS PLATFORM'}
+          <button type="submit" disabled={isLoading} className="mavyx-btn mavyx-btn-primary" style={{ width: '100%', padding: '10px 16px' }}>
+            {isLoading ? 'Authenticating...' : 'Access Platform'}
           </button>
         </form>
 
-        <p className="text-center mt-6 font-rajdhani text-sm text-dim">
+        <p style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--text-tertiary)' }}>
           No account?{' '}
-          <Link href="/signup" className="text-gold hover:underline">Create one</Link>
+          <Link href="/signup" style={{ color: 'var(--gold)', textDecoration: 'none' }}>Create one</Link>
+        </p>
+
+        {/* Security notice */}
+        <p style={{ textAlign: 'center', marginTop: 32, fontSize: 11, color: 'var(--text-ghost)' }}>
+          Protected by enterprise-grade security
         </p>
       </div>
     </main>

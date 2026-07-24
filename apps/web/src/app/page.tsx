@@ -2,105 +2,78 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
+
+/**
+ * Mavyx Intelligence — Landing Page
+ * Per MEIDS §6.2: "Introduce Mavyx. Not sell Mavyx."
+ * Professional. Calm. Institutional.
+ */
+
+const FEATURES = [
+  { icon: '⬡', title: 'Multi-Agent Intelligence', desc: 'Independent specialist agents analyze markets from multiple perspectives' },
+  { icon: '◈', title: 'Executive Decision Engine', desc: 'Synthesizes evidence into transparent, explainable recommendations' },
+  { icon: '◇', title: 'Evidence-Based Analysis', desc: 'Every conclusion backed by measurable evidence and documented reasoning' },
+  { icon: '◻', title: 'Institutional Research', desc: 'Professional-grade market intelligence, not retail signals' },
+  { icon: '◫', title: 'Continuous Learning', desc: 'Trade journal, performance analytics, and behavioral coaching' },
+  { icon: '◬', title: 'Transparent Reasoning', desc: 'See exactly why every recommendation was made and what evidence supports it' },
+];
 
 export default function HomePage() {
   const router = useRouter();
   const { token, isHydrated, hydrate } = useAuthStore();
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { hydrate(); setMounted(true); }, [hydrate]);
-  useEffect(() => { if (isHydrated && token) router.replace('/profile'); }, [isHydrated, token, router]);
+  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { if (isHydrated && token) router.replace('/workspace'); }, [isHydrated, token, router]);
 
   return (
-    <main className="relative min-h-screen flex items-center justify-center overflow-hidden">
-      {/* Animated Background */}
-      <div className="mavyx-bg" />
-      <div className="mavyx-grid" />
-      <div className="mavyx-orb mavyx-orb-gold" />
-      <div className="mavyx-orb mavyx-orb-cyan" />
-      <div className="mavyx-orb mavyx-orb-purple" />
+    <main style={{ background: 'var(--bg-primary)', minHeight: '100vh', overflow: 'auto' }}>
+      {/* Hero */}
+      <section style={{ maxWidth: 800, margin: '0 auto', padding: '120px 24px 80px', textAlign: 'center' }}>
+        <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx Intelligence" width={160} height={64} priority
+          style={{ marginBottom: 32, opacity: 0.9 }} />
 
-      {/* Content */}
-      <div className="relative z-10 w-full max-w-lg px-6 mavyx-page-enter">
-        {/* Logo */}
-        <div className="text-center mb-12">
-          <div className="flex justify-center mb-6">
-            <div className="relative">
-              <Image
-                src="/brand/Mavyx GOLD VERSION.png"
-                alt="Mavyx Intelligence"
-                width={180}
-                height={72}
-                priority
-                className="drop-shadow-[0_0_40px_rgba(201,168,76,0.3)]"
-              />
-              {/* Glow effect under logo */}
-              <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-32 h-8 rounded-full bg-[#C9A84C]/10 blur-xl" />
-            </div>
-          </div>
+        <h1 style={{ fontSize: 32, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em', marginBottom: 8 }}>
+          Enterprise Trading Intelligence
+        </h1>
 
-          <h1 className="font-orbitron text-5xl font-black tracking-[0.2em] mb-2 glow-gold"
-            style={{ color: '#C9A84C' }}>
-            MAVYX
-          </h1>
-          <div className="flex items-center justify-center gap-3 mb-6">
-            <div className="h-px w-12 bg-gradient-to-r from-transparent to-[#C9A84C]/30" />
-            <p className="font-orbitron text-xs tracking-[0.4em] uppercase" style={{ color: '#6B6B80' }}>
-              Intelligence
-            </p>
-            <div className="h-px w-12 bg-gradient-to-l from-transparent to-[#C9A84C]/30" />
-          </div>
+        <p style={{ fontSize: 16, color: 'var(--text-secondary)', maxWidth: 500, margin: '0 auto 48px', lineHeight: 1.6 }}>
+          Analyze. Understand. Decide.
+          <br />
+          <span style={{ color: 'var(--text-tertiary)' }}>Not Predict. Gamble. Win.</span>
+        </p>
 
-          <p className="font-rajdhani text-lg leading-relaxed" style={{ color: '#6B6B80' }}>
-            AI-powered Forex market intelligence.
-            <br />
-            <span className="text-gold font-semibold">7 specialist agents.</span>{' '}
-            <span style={{ color: '#4B4B60' }}>One unified recommendation.</span>
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-3 mb-10">
-          {[
-            { value: '7', label: 'AI Agents', icon: '◈' },
-            { value: '28+', label: 'Pairs', icon: '◇' },
-            { value: '99%', label: 'Uptime', icon: '◆' },
-          ].map((stat, i) => (
-            <div key={stat.label} className="mavyx-glass p-4 text-center group">
-              <div className="text-xs mb-2 text-gold/40 group-hover:text-gold transition-colors">{stat.icon}</div>
-              <p className="font-orbitron text-2xl font-bold text-gold glow-gold">{stat.value}</p>
-              <p className="font-rajdhani text-xs uppercase tracking-widest mt-1" style={{ color: '#6B6B80' }}>
-                {stat.label}
-              </p>
-            </div>
-          ))}
-        </div>
-
-        {/* CTA Buttons */}
-        <div className="space-y-3 mb-8">
-          <Link href="/login" className="mavyx-btn mavyx-btn-gold block text-center w-full">
+        <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginBottom: 64 }}>
+          <Link href="/login" className="mavyx-btn mavyx-btn-primary" style={{ padding: '12px 32px' }}>
             Access Platform
           </Link>
-          <Link href="/signup" className="mavyx-btn mavyx-btn-ghost block text-center w-full">
+          <Link href="/signup" className="mavyx-btn mavyx-btn-secondary" style={{ padding: '12px 32px' }}>
             Create Account
           </Link>
         </div>
+      </section>
 
-        {/* Disclaimer */}
-        <p className="text-center font-rajdhani text-xs" style={{ color: '#3B3B50' }}>
-          AI-generated analysis only · Not financial advice
-        </p>
-
-        {/* Bottom decorative line */}
-        <div className="mt-12 flex items-center justify-center gap-2">
-          <div className="h-px w-16 bg-gradient-to-r from-transparent to-[#C9A84C]/20" />
-          <div className="w-1.5 h-1.5 rounded-full bg-[#C9A84C]/30" />
-          <div className="h-px w-16 bg-gradient-to-l from-transparent to-[#C9A84C]/20" />
+      {/* Features */}
+      <section style={{ maxWidth: 900, margin: '0 auto', padding: '0 24px 80px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
+          {FEATURES.map((f) => (
+            <div key={f.title} className="mavyx-card" style={{ padding: 20 }}>
+              <div style={{ color: 'var(--text-tertiary)', fontSize: 20, marginBottom: 12 }}>{f.icon}</div>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 6 }}>{f.title}</h3>
+              <p style={{ fontSize: 12, color: 'var(--text-tertiary)', lineHeight: 1.5 }}>{f.desc}</p>
+            </div>
+          ))}
         </div>
-      </div>
+      </section>
+
+      {/* Footer */}
+      <footer style={{ borderTop: '1px solid var(--border)', padding: '24px', textAlign: 'center' }}>
+        <p style={{ fontSize: 11, color: 'var(--text-ghost)' }}>
+          AI-generated analysis only · Not financial advice · Always manage your own risk
+        </p>
+      </footer>
     </main>
   );
 }

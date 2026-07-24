@@ -1,13 +1,17 @@
 'use client';
 
 import { useState, useEffect, FormEvent } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { analyzeSymbol } from '@/features/ai/api';
 import { AnalysisResult } from '@/features/ai/types';
 import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
+import AppLayout from '@/components/layout/AppLayout';
+
+/**
+ * AI Analysis Page — Per MEIDS §5.8, §5.11
+ * Executive Intelligence Brief with Evidence Cards
+ */
 
 export default function AnalysisPage() {
   const router = useRouter();
@@ -17,7 +21,7 @@ export default function AnalysisPage() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showAgents, setShowAgents] = useState(false);
+  const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (isHydrated && !token) router.replace('/login'); }, [isHydrated, token, router]);
@@ -35,138 +39,104 @@ export default function AnalysisPage() {
   }
 
   if (!isHydrated || !token) {
-    return (
-      <main className="relative min-h-screen flex items-center justify-center">
-        <div className="mavyx-bg" /><div className="mavyx-grid" />
-        <div className="mavyx-loader" />
-      </main>
-    );
+    return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}><div className="text-ghost">Loading...</div></div>;
   }
 
   return (
-    <main className="relative min-h-screen p-6">
-      <div className="mavyx-bg" /><div className="mavyx-grid" />
-      <div className="mavyx-orb mavyx-orb-gold" /><div className="mavyx-orb mavyx-orb-cyan" />
-
-      <div className="relative z-10 mx-auto max-w-2xl mavyx-page-enter">
+    <AppLayout>
+      <div style={{ maxWidth: 700 }}>
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-3">
-            <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={28} height={28} />
-            <div>
-              <h1 className="font-orbitron text-sm tracking-widest text-gold">AI ANALYSIS</h1>
-              <p className="font-rajdhani text-xs text-dim">Multi-agent intelligence</p>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div>
+            <h1>AI Analysis</h1>
+            <p className="text-caption">Multi-agent intelligence analysis</p>
           </div>
-          <Link href="/profile" className="font-rajdhani text-xs tracking-wider uppercase text-dim hover:text-gold transition-colors">
-            ← Back
-          </Link>
         </div>
 
-        {/* Input Form */}
-        <form onSubmit={handleAnalyze} className="mavyx-glass p-6 mb-6">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Currency Pair</label>
-              <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} placeholder="EUR/USD" className="mavyx-input" />
+        {/* Input */}
+        <form onSubmit={handleAnalyze} className="mavyx-card" style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end' }}>
+            <div style={{ flex: 1 }}>
+              <label className="text-label" style={{ display: 'block', marginBottom: 6 }}>Currency Pair</label>
+              <input type="text" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())}
+                placeholder="EUR/USD" className="mavyx-input" />
             </div>
-            <div>
-              <label className="block font-orbitron text-[10px] tracking-widest uppercase mb-2 text-dim">Timeframe</label>
+            <div style={{ width: 120 }}>
+              <label className="text-label" style={{ display: 'block', marginBottom: 6 }}>Timeframe</label>
               <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className="mavyx-input">
                 <option value="1h">1 Hour</option>
                 <option value="4h">4 Hour</option>
                 <option value="1d">Daily</option>
               </select>
             </div>
+            <button type="submit" disabled={isLoading} className="mavyx-btn mavyx-btn-primary" style={{ whiteSpace: 'nowrap' }}>
+              {isLoading ? 'Analyzing...' : 'Run Analysis'}
+            </button>
           </div>
-          <button type="submit" disabled={isLoading} className="mavyx-btn mavyx-btn-gold w-full">
-            {isLoading ? (
-              <span className="flex items-center justify-center gap-3">
-                <span className="mavyx-typing"><span /><span /><span /></span>
-                ANALYZING
-              </span>
-            ) : 'RUN ANALYSIS'}
-          </button>
           {isLoading && (
-            <div className="mt-4 text-center">
-              <p className="font-rajdhani text-xs text-dim mb-2">Deploying specialist agents...</p>
-              <div className="flex justify-center gap-2">
-                {['Technical', 'Structure', 'Sentiment', 'Risk', 'Fundamental', 'Behavior', 'Recommendation'].map((agent, i) => (
-                  <div key={agent} className="w-2 h-2 rounded-full bg-gold/30 animate-pulse" style={{ animationDelay: `${i * 0.2}s` }} />
+            <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', gap: 4 }}>
+                {[0,1,2,3,4,5,6].map(i => (
+                  <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', opacity: 0.3, animation: `fadeIn 1s ease ${i * 0.15}s infinite alternate` }} />
                 ))}
               </div>
+              <span className="text-caption">Deploying specialist agents...</span>
             </div>
           )}
         </form>
 
-        {/* Error */}
         {error && (
-          <div className="mavyx-glass p-4 mb-6" style={{ borderColor: 'rgba(255,45,85,0.2)' }}>
-            <p className="font-rajdhani text-sm" style={{ color: '#FF5252' }}>{error}</p>
+          <div className="mavyx-card" style={{ marginBottom: 16, borderColor: 'rgba(255,59,48,0.2)', color: 'var(--red)', fontSize: 13 }}>
+            {error}
           </div>
         )}
 
         {/* Results */}
         {result && (
-          <div className="space-y-4 mavyx-stagger">
+          <div className="animate-slide-up" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {/* Recommendation */}
-            <div className={`mavyx-rec-card mavyx-rec-${result.recommendation === 'no_trade' ? 'no-trade' : result.recommendation}`}>
-              <p className="font-orbitron text-[10px] tracking-widest text-dim mb-3">{result.symbol}</p>
-              <p className="font-orbitron text-5xl font-black mb-3" style={{ color: getRecColor(result.recommendation) }}>
-                {result.recommendation === 'buy' ? 'BUY' : result.recommendation === 'sell' ? 'SELL' : result.recommendation === 'wait' ? 'WAIT' : 'NO TRADE'}
-              </p>
-              <p className="font-rajdhani text-sm text-dim">
-                Confidence: <span className="font-orbitron font-bold text-gold">{result.confidence}%</span>
-              </p>
+            <div className="mavyx-card" style={{ textAlign: 'center', padding: 24 }}>
+              <div className="text-label" style={{ marginBottom: 8 }}>{result.symbol}</div>
+              <div className={`mavyx-rec-badge rec-${result.recommendation === 'buy' ? 'strong' : result.recommendation === 'sell' ? 'high-risk' : result.recommendation === 'wait' ? 'wait' : 'avoid'}`}
+                style={{ fontSize: 18, padding: '8px 24px', marginBottom: 8 }}>
+                {result.recommendation === 'buy' ? 'STRONG CANDIDATE' : result.recommendation === 'sell' ? 'HIGH RISK' : result.recommendation === 'wait' ? 'WAIT FOR CONFIRMATION' : 'AVOID'}
+              </div>
+              <div className="text-caption">Confidence: <span className="text-gold text-number" style={{ fontWeight: 700 }}>{result.confidence}%</span></div>
             </div>
 
-            {/* Confidence & Consensus */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="mavyx-glass p-5">
-                <p className="font-orbitron text-[10px] tracking-widest text-dim mb-3">CONFIDENCE</p>
-                <p className="font-orbitron text-4xl font-black text-gold glow-gold mb-3">{result.confidence}%</p>
-                <div className="mavyx-confidence-track">
-                  <div className={`mavyx-confidence-fill ${result.confidence >= 70 ? 'confidence-high' : result.confidence >= 50 ? 'confidence-medium' : 'confidence-low'}`}
-                    style={{ width: `${result.confidence}%` }} />
-                </div>
+            {/* Confidence Ring + Consensus */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {/* Confidence Ring */}
+              <div className="mavyx-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: 20 }}>
+                <div className="text-label" style={{ marginBottom: 12 }}>Confidence</div>
+                <ConfidenceRing value={result.confidence} />
               </div>
-              <div className="mavyx-glass p-5">
-                <p className="font-orbitron text-[10px] tracking-widest text-dim mb-3">CONSENSUS</p>
-                <div className="space-y-3">
-                  {[
-                    { label: 'BULL', count: result.agent_consensus.bullish, color: '#00FF88' },
-                    { label: 'BEAR', count: result.agent_consensus.bearish, color: '#FF2D55' },
-                    { label: 'FLAT', count: result.agent_consensus.neutral, color: '#6B6B80' },
-                  ].map((item) => {
-                    const total = result.agent_consensus.bullish + result.agent_consensus.bearish + result.agent_consensus.neutral;
-                    return (
-                      <div key={item.label} className="flex items-center gap-2">
-                        <span className="font-orbitron text-[9px] w-8" style={{ color: item.color }}>{item.label}</span>
-                        <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.03)' }}>
-                          <div className="h-full rounded-full transition-all duration-1000" style={{ width: `${total > 0 ? (item.count / total) * 100 : 0}%`, background: item.color }} />
-                        </div>
-                        <span className="font-orbitron text-xs font-bold w-4 text-right" style={{ color: item.color }}>{item.count}</span>
-                      </div>
-                    );
-                  })}
+
+              {/* Agent Consensus */}
+              <div className="mavyx-card" style={{ padding: 20 }}>
+                <div className="text-label" style={{ marginBottom: 12 }}>Agent Consensus</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <ConsensusBar label="Bullish" count={result.agent_consensus.bullish} total={result.agent_consensus.bullish + result.agent_consensus.bearish + result.agent_consensus.neutral} color="var(--green)" />
+                  <ConsensusBar label="Bearish" count={result.agent_consensus.bearish} total={result.agent_consensus.bullish + result.agent_consensus.bearish + result.agent_consensus.neutral} color="var(--red)" />
+                  <ConsensusBar label="Neutral" count={result.agent_consensus.neutral} total={result.agent_consensus.bullish + result.agent_consensus.bearish + result.agent_consensus.neutral} color="var(--text-tertiary)" />
                 </div>
               </div>
             </div>
 
             {/* Suggested Action */}
             {result.suggested_action?.direction && result.suggested_action.direction !== 'none' && (
-              <div className="mavyx-glass p-5 border-glow-gold">
-                <p className="font-orbitron text-[10px] tracking-widest text-gold mb-4">SUGGESTED ACTION</p>
-                <div className="grid grid-cols-2 gap-3">
+              <div className="mavyx-card" style={{ borderColor: 'var(--gold-border)' }}>
+                <div className="text-label text-gold" style={{ marginBottom: 12 }}>Suggested Action</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
                   {[
-                    { label: 'ENTRY', value: result.suggested_action.entry_zone },
-                    { label: 'STOP LOSS', value: result.suggested_action.stop_loss },
-                    { label: 'TAKE PROFIT 1', value: result.suggested_action.take_profit_1 },
-                    { label: 'TAKE PROFIT 2', value: result.suggested_action.take_profit_2 },
-                  ].filter(i => i.value && i.value !== 'N/A').map((item) => (
-                    <div key={item.label} className="p-3 rounded-lg" style={{ background: 'rgba(201,168,76,0.03)', border: '1px solid rgba(201,168,76,0.08)' }}>
-                      <p className="font-orbitron text-[9px] tracking-widest text-gold/50 mb-1">{item.label}</p>
-                      <p className="font-rajdhani text-sm font-semibold" style={{ color: '#F0F0F8' }}>{item.value}</p>
+                    { label: 'Entry Zone', value: result.suggested_action.entry_zone },
+                    { label: 'Stop Loss', value: result.suggested_action.stop_loss },
+                    { label: 'Take Profit 1', value: result.suggested_action.take_profit_1 },
+                    { label: 'Take Profit 2', value: result.suggested_action.take_profit_2 },
+                  ].filter(i => i.value && i.value !== 'N/A').map(item => (
+                    <div key={item.label} style={{ padding: '6px 10px', background: 'var(--bg-primary)', borderRadius: 4, border: '1px solid var(--border)' }}>
+                      <div className="text-label" style={{ fontSize: 9, marginBottom: 2 }}>{item.label}</div>
+                      <div className="text-number" style={{ fontSize: 14, fontWeight: 600 }}>{item.value}</div>
                     </div>
                   ))}
                 </div>
@@ -175,86 +145,111 @@ export default function AnalysisPage() {
 
             {/* Key Evidence */}
             {result.key_evidence.length > 0 && (
-              <div className="mavyx-glass p-5">
-                <p className="font-orbitron text-[10px] tracking-widest text-gold mb-4">KEY EVIDENCE</p>
-                <div className="space-y-2">
-                  {result.key_evidence.map((e, i) => (
-                    <div key={i} className="flex items-start gap-3 p-2 rounded-lg" style={{ background: 'rgba(201,168,76,0.02)' }}>
-                      <span className="font-orbitron text-xs text-gold mt-0.5">✓</span>
-                      <p className="font-rajdhani text-sm" style={{ color: '#B0B0C0' }}>{e}</p>
-                    </div>
-                  ))}
-                </div>
+              <div className="mavyx-card">
+                <div className="text-label" style={{ marginBottom: 10 }}>Key Evidence</div>
+                {result.key_evidence.map((e, i) => (
+                  <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: i < result.key_evidence.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <span className="text-gold" style={{ fontSize: 11 }}>✓</span>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{e}</span>
+                  </div>
+                ))}
               </div>
             )}
 
             {/* Risk Warnings */}
             {result.risk_warnings.length > 0 && (
-              <div className="mavyx-glass p-5" style={{ borderColor: 'rgba(255,184,0,0.15)' }}>
-                <p className="font-orbitron text-[10px] tracking-widest mb-4" style={{ color: '#FFB800' }}>⚠ RISK WARNINGS</p>
-                <div className="space-y-2">
-                  {result.risk_warnings.map((w, i) => (
-                    <p key={i} className="font-rajdhani text-sm" style={{ color: '#FFD54F' }}>• {w}</p>
-                  ))}
-                </div>
+              <div className="mavyx-card" style={{ borderColor: 'rgba(255,149,0,0.2)' }}>
+                <div className="text-label text-orange" style={{ marginBottom: 10 }}>Risk Warnings</div>
+                {result.risk_warnings.map((w, i) => (
+                  <div key={i} style={{ fontSize: 13, color: 'var(--orange)', padding: '4px 0' }}>• {w}</div>
+                ))}
               </div>
             )}
 
             {/* Agent Breakdown */}
-            <div className="mavyx-glass overflow-hidden">
-              <button onClick={() => setShowAgents(!showAgents)} className="w-full p-5 flex items-center justify-between">
-                <p className="font-orbitron text-[10px] tracking-widest text-gold">AGENT BREAKDOWN ({result.agent_breakdown.length})</p>
-                <span className="text-dim text-xs">{showAgents ? '▲' : '▼'}</span>
-              </button>
-              {showAgents && (
-                <div className="px-5 pb-5 space-y-2 mavyx-stagger">
-                  {result.agent_breakdown.map((agent) => (
-                    <div key={agent.agent_id} className="p-3 rounded-lg flex items-center justify-between"
-                      style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.04)' }}>
-                      <div>
-                        <p className="font-rajdhani text-sm font-semibold" style={{ color: '#F0F0F8' }}>
-                          {agent.agent_id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-                        </p>
-                        <p className="font-rajdhani text-xs text-dim mt-0.5">{agent.summary?.substring(0, 60)}...</p>
-                      </div>
-                      <span className={`mavyx-badge mavyx-badge-${agent.signal}`}>
-                        {agent.signal} {agent.confidence}%
-                      </span>
+            <div className="mavyx-card">
+              <div className="text-label" style={{ marginBottom: 10 }}>Agent Breakdown ({result.agent_breakdown.length})</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {result.agent_breakdown.map((agent) => (
+                  <div key={agent.agent_id}
+                    className="mavyx-evidence-card"
+                    onClick={() => setExpandedAgent(expandedAgent === agent.agent_id ? null : agent.agent_id)}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span className="agent-name">{formatAgentName(agent.agent_id)}</span>
+                      <span className={`signal signal-${agent.signal}`}>{agent.signal} {agent.confidence}%</span>
                     </div>
-                  ))}
-                </div>
-              )}
+                    {expandedAgent === agent.agent_id && (
+                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
+                        <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{agent.summary}</p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Executive Summary */}
-            <div className="mavyx-glass p-5">
-              <p className="font-orbitron text-[10px] tracking-widest text-gold mb-3">EXECUTIVE SUMMARY</p>
-              <p className="font-rajdhani text-sm leading-relaxed whitespace-pre-line" style={{ color: '#8B8BA0' }}>
+            <div className="mavyx-card">
+              <div className="text-label" style={{ marginBottom: 10 }}>Executive Summary</div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
                 {result.executive_summary}
               </p>
             </div>
 
-            {/* Footer */}
-            <div className="text-center pt-4">
-              <p className="font-rajdhani text-xs text-dim">
-                {result.successful_agents}/{result.result.total_agents} agents · {result.processing_time_ms}ms
-              </p>
-              <p className="font-rajdhani text-[10px] mt-2" style={{ color: '#3B3B50' }}>
-                AI-generated analysis only · Not financial advice
-              </p>
+            {/* Metadata */}
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <span className="text-ghost" style={{ fontSize: 11 }}>
+                {result.successful_agents}/{result.total_agents} agents · {result.processing_time_ms}ms · {new Date(result.timestamp).toLocaleString()}
+              </span>
+            </div>
+
+            <div style={{ textAlign: 'center', padding: '8px 0' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-ghost)' }}>
+                AI-generated analysis only · Not financial advice · Always manage your own risk
+              </span>
             </div>
           </div>
         )}
       </div>
-    </main>
+    </AppLayout>
   );
 }
 
-function getRecColor(rec: string): string {
-  switch (rec) {
-    case 'buy': return '#00FF88';
-    case 'sell': return '#FF2D55';
-    case 'wait': return '#FFB800';
-    default: return '#6B6B80';
-  }
+/* ─── Sub-components ───────────────────────────────────────────── */
+
+function ConfidenceRing({ value }: { value: number }) {
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (value / 100) * circumference;
+
+  return (
+    <div className="mavyx-confidence-ring">
+      <svg width="100" height="100" viewBox="0 0 100 100">
+        <circle className="track" cx="50" cy="50" r={radius} />
+        <circle className="fill" cx="50" cy="50" r={radius}
+          strokeDasharray={circumference} strokeDashoffset={offset} />
+      </svg>
+      <div className="center-text">
+        <span className="percentage">{value}</span>
+        <span className="label">Confidence</span>
+      </div>
+    </div>
+  );
+}
+
+function ConsensusBar({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
+  const pct = total > 0 ? (count / total) * 100 : 0;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+      <span style={{ width: 50, fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
+      <div style={{ flex: 1, height: 4, background: 'var(--bg-primary)', borderRadius: 2 }}>
+        <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.8s ease' }} />
+      </div>
+      <span className="text-number" style={{ width: 16, textAlign: 'right', fontSize: 12, fontWeight: 700, color }}>{count}</span>
+    </div>
+  );
+}
+
+function formatAgentName(id: string): string {
+  return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
 }

@@ -3,461 +3,510 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════
-   MAVYX INTELLIGENCE — FUTURISTIC PREMIUM DESIGN SYSTEM
+   MAVYX INTELLIGENCE — INSTITUTIONAL DESIGN SYSTEM
+   Per MEIDS Chapter 5: "Bloomberg Terminal" feel
+   Professional. Calm. Precise. Intelligent. Premium. Institutional.
    ═══════════════════════════════════════════════════════════════════ */
 
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+/* ─── CSS Variables ───────────────────────────────────────────── */
 :root {
-  --mavyx-black: #000000;
-  --mavyx-dark: #050508;
-  --mavyx-dark-2: #0A0A12;
-  --mavyx-dark-3: #0F0F1A;
-  --mavyx-gold: #C9A84C;
-  --mavyx-gold-light: #E8D48B;
-  --mavyx-gold-glow: rgba(201, 168, 76, 0.4);
-  --mavyx-gold-dim: rgba(201, 168, 76, 0.1);
-  --mavyx-cyan: #00F0FF;
-  --mavyx-cyan-glow: rgba(0, 240, 255, 0.3);
-  --mavyx-green: #00FF88;
-  --mavyx-red: #FF2D55;
-  --mavyx-amber: #FFB800;
-  --mavyx-purple: #8B5CF6;
-  --mavyx-text: #F0F0F8;
-  --mavyx-text-dim: #6B6B80;
-  --mavyx-glass: rgba(255, 255, 255, 0.03);
-  --mavyx-glass-border: rgba(255, 255, 255, 0.06);
-  --mavyx-glass-hover: rgba(255, 255, 255, 0.06);
+  /* Background — Deep matte black, NOT pure black (reduces eye fatigue) */
+  --bg-primary: #08080C;
+  --bg-secondary: #0C0C12;
+  --bg-tertiary: #101018;
+  --bg-elevated: #14141E;
+  --bg-surface: #181822;
+
+  /* Gold — RESERVED ONLY for AI Intelligence, Confidence, Executive Decisions */
+  --gold: #C9A84C;
+  --gold-dim: rgba(201, 168, 76, 0.12);
+  --gold-border: rgba(201, 168, 76, 0.2);
+
+  /* Blue — Information, Charts, Links, Knowledge, Analysis */
+  --blue: #4A9EFF;
+  --blue-dim: rgba(74, 158, 255, 0.1);
+
+  /* Green — Validated positive evidence ONLY */
+  --green: #34C759;
+  --green-dim: rgba(52, 199, 89, 0.1);
+
+  /* Red — Invalidation, Critical Risk, Major News, Trade Rejection */
+  --red: #FF3B30;
+  --red-dim: rgba(255, 59, 48, 0.1);
+
+  /* Orange — Caution/Warning */
+  --orange: #FF9500;
+  --orange-dim: rgba(255, 149, 0, 0.1);
+
+  /* Neutral — Disabled, Unknown, Waiting, Loading, Uncertainty */
+  --text-primary: #E8E8ED;
+  --text-secondary: #9898A8;
+  --text-tertiary: #686878;
+  --text-ghost: #484858;
+
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.1);
+
+  /* Dimensions */
+  --sidebar-width: 240px;
+  --topbar-height: 48px;
+  --bottombar-height: 32px;
+  --ai-panel-width: 380px;
 }
 
+/* ─── Reset & Base ────────────────────────────────────────────── */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
 
 body {
-  background: var(--mavyx-black);
-  color: var(--mavyx-text);
-  font-family: 'Rajdhani', 'Inter', sans-serif;
-  min-height: 100vh;
-  overflow-x: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* ─── Scrollbar ──────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; }
+/* ─── Typography — Hierarchy ──────────────────────────────────── */
+/* Per MEIDS §5.3: One font throughout. Never mix decorative fonts. */
+h1 { font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+h3 { font-size: 15px; font-weight: 600; }
+.text-caption { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+.text-label { font-size: 11px; font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; color: var(--text-tertiary); }
+.text-number { font-variant-numeric: tabular-nums; }
+
+/* ─── Scrollbar — Minimal ─────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--mavyx-gold-dim); border-radius: 2px; }
-::-webkit-scrollbar-thumb:hover { background: var(--mavyx-gold); }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATED BACKGROUND
+   LAYOUT — 5 Permanent Zones (MEIDS §5.5)
    ═══════════════════════════════════════════════════════════════ */
-.mavyx-bg {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background:
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(201, 168, 76, 0.08), transparent),
-    radial-gradient(ellipse 60% 40% at 80% 80%, rgba(0, 240, 255, 0.03), transparent),
-    radial-gradient(ellipse 40% 30% at 10% 60%, rgba(139, 92, 246, 0.03), transparent),
-    var(--mavyx-black);
+
+.mavyx-layout {
+  display: grid;
+  grid-template-rows: var(--topbar-height) 1fr var(--bottombar-height);
+  grid-template-columns: var(--sidebar-width) 1fr var(--ai-panel-width);
+  grid-template-areas:
+    "topbar   topbar   topbar"
+    "sidebar  workspace panel"
+    "bottombar bottombar bottombar";
+  height: 100vh;
+  width: 100vw;
 }
 
-/* Animated grid lines */
-.mavyx-grid {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  background-image:
-    linear-gradient(rgba(201, 168, 76, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(201, 168, 76, 0.02) 1px, transparent 1px);
-  background-size: 60px 60px;
-  mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black, transparent);
-  animation: gridPulse 8s ease-in-out infinite;
+.mavyx-topbar    { grid-area: topbar; }
+.mavyx-sidebar   { grid-area: sidebar; }
+.mavyx-workspace { grid-area: workspace; }
+.mavyx-panel     { grid-area: panel; }
+.mavyx-bottombar { grid-area: bottombar; }
+
+/* ─── Top Intelligence Bar ────────────────────────────────────── */
+.mavyx-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  z-index: 100;
 }
 
-@keyframes gridPulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+.mavyx-topbar-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-/* Floating orbs */
-.mavyx-orb {
-  position: fixed;
-  border-radius: 50%;
-  filter: blur(80px);
-  animation: orbFloat 20s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-.mavyx-orb-gold {
-  width: 400px;
-  height: 400px;
-  background: radial-gradient(circle, rgba(201, 168, 76, 0.15), transparent 70%);
-  top: -10%;
-  right: -5%;
-  animation-delay: 0s;
-}
-
-.mavyx-orb-cyan {
-  width: 300px;
-  height: 300px;
-  background: radial-gradient(circle, rgba(0, 240, 255, 0.08), transparent 70%);
-  bottom: 10%;
-  left: -5%;
-  animation-delay: -7s;
-}
-
-.mavyx-orb-purple {
-  width: 250px;
-  height: 250px;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.06), transparent 70%);
-  top: 40%;
-  right: 20%;
-  animation-delay: -14s;
-}
-
-@keyframes orbFloat {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  25% { transform: translate(30px, -40px) scale(1.1); }
-  50% { transform: translate(-20px, 20px) scale(0.9); }
-  75% { transform: translate(40px, 30px) scale(1.05); }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   GLASSMORPHISM CARDS
-   ═══════════════════════════════════════════════════════════════ */
-.mavyx-glass {
-  background: var(--mavyx-glass);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--mavyx-glass-border);
-  border-radius: 16px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.mavyx-glass:hover {
-  background: var(--mavyx-glass-hover);
-  border-color: rgba(201, 168, 76, 0.15);
-  box-shadow: 0 0 30px rgba(201, 168, 76, 0.05);
-  transform: translateY(-2px);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   FUTURISTIC BUTTONS
-   ═══════════════════════════════════════════════════════════════ */
-.mavyx-btn {
-  position: relative;
-  padding: 14px 32px;
-  border: none;
-  border-radius: 8px;
-  font-family: 'Orbitron', monospace;
-  font-weight: 600;
+.mavyx-topbar-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+.mavyx-topbar-item .value {
+  color: var(--text-primary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Left Sidebar ────────────────────────────────────────────── */
+.mavyx-sidebar {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+  overflow-y: auto;
+}
+
+.mavyx-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
   cursor: pointer;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  transition: all 0.15s ease;
+  border-left: 2px solid transparent;
+  text-decoration: none;
 }
 
-.mavyx-btn-gold {
-  background: linear-gradient(135deg, var(--mavyx-gold), #A08030);
-  color: var(--mavyx-black);
-  box-shadow: 0 0 20px rgba(201, 168, 76, 0.2);
+.mavyx-nav-item:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.02);
 }
 
-.mavyx-btn-gold::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-  transform: translateX(-100%);
-  transition: transform 0.6s ease;
+.mavyx-nav-item.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+  border-left-color: var(--gold);
 }
 
-.mavyx-btn-gold:hover::before {
-  transform: translateX(100%);
+.mavyx-nav-item .icon {
+  width: 18px;
+  text-align: center;
+  font-size: 14px;
+  opacity: 0.7;
 }
 
-.mavyx-btn-gold:hover {
-  box-shadow: 0 0 40px rgba(201, 168, 76, 0.4), 0 0 80px rgba(201, 168, 76, 0.1);
-  transform: translateY(-2px);
+.mavyx-nav-item.active .icon {
+  opacity: 1;
+  color: var(--gold);
+}
+
+.mavyx-nav-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 8px 16px;
+}
+
+/* ─── Executive Workspace ─────────────────────────────────────── */
+.mavyx-workspace {
+  background: var(--bg-primary);
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ─── AI Intelligence Panel ───────────────────────────────────── */
+.mavyx-panel {
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.mavyx-panel-header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mavyx-panel-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+/* ─── Bottom Intelligence Dock ────────────────────────────────── */
+.mavyx-bottombar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  color: var(--text-tertiary);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── Cards ───────────────────────────────────────────────────── */
+.mavyx-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+/* ─── Buttons ─────────────────────────────────────────────────── */
+.mavyx-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: none;
+  outline: none;
+}
+
+.mavyx-btn-primary {
+  background: var(--gold);
+  color: var(--bg-primary);
+}
+
+.mavyx-btn-primary:hover {
+  background: #D4B35A;
+}
+
+.mavyx-btn-secondary {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+
+.mavyx-btn-secondary:hover {
+  border-color: var(--border-hover);
+  color: var(--text-primary);
 }
 
 .mavyx-btn-ghost {
   background: transparent;
-  color: var(--mavyx-text-dim);
-  border: 1px solid var(--mavyx-glass-border);
+  color: var(--text-secondary);
+  padding: 6px 10px;
 }
 
 .mavyx-btn-ghost:hover {
-  border-color: var(--mavyx-gold);
-  color: var(--mavyx-gold);
-  box-shadow: 0 0 20px rgba(201, 168, 76, 0.1);
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   FUTURISTIC INPUTS
-   ═══════════════════════════════════════════════════════════════ */
+/* ─── Inputs ──────────────────────────────────────────────────── */
 .mavyx-input {
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid var(--mavyx-glass-border);
-  color: var(--mavyx-text);
-  padding: 14px 16px;
-  border-radius: 8px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
   width: 100%;
-  font-family: 'Rajdhani', sans-serif;
-  font-size: 16px;
-  font-weight: 500;
-  transition: all 0.3s ease;
-  letter-spacing: 0.5px;
+  transition: border-color 0.15s ease;
 }
 
 .mavyx-input:focus {
   outline: none;
-  border-color: var(--mavyx-gold);
-  box-shadow: 0 0 0 3px rgba(201, 168, 76, 0.1), 0 0 20px rgba(201, 168, 76, 0.05);
-  background: rgba(201, 168, 76, 0.02);
+  border-color: var(--gold-border);
 }
 
-.mavyx-input::placeholder {
-  color: var(--mavyx-text-dim);
-  font-weight: 400;
+.mavyx-input::placeholder { color: var(--text-ghost); }
+
+select.mavyx-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23686878' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 30px;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   ANIMATED RECOMMENDATION CARDS
+   EXECUTIVE INTELLIGENCE BRIEF COMPONENTS
    ═══════════════════════════════════════════════════════════════ */
-.mavyx-rec-card {
+
+/* ─── Confidence Ring ─────────────────────────────────────────── */
+.mavyx-confidence-ring {
   position: relative;
-  padding: 40px;
-  border-radius: 20px;
-  text-align: center;
-  overflow: hidden;
+  width: 100px;
+  height: 100px;
 }
 
-.mavyx-rec-buy {
-  background: linear-gradient(135deg, rgba(0, 255, 136, 0.05), rgba(0, 255, 136, 0.02));
-  border: 1px solid rgba(0, 255, 136, 0.15);
+.mavyx-confidence-ring svg {
+  transform: rotate(-90deg);
 }
 
-.mavyx-rec-sell {
-  background: linear-gradient(135deg, rgba(255, 45, 85, 0.05), rgba(255, 45, 85, 0.02));
-  border: 1px solid rgba(255, 45, 85, 0.15);
+.mavyx-confidence-ring .track {
+  fill: none;
+  stroke: var(--bg-primary);
+  stroke-width: 6;
 }
 
-.mavyx-rec-wait {
-  background: linear-gradient(135deg, rgba(255, 184, 0, 0.05), rgba(255, 184, 0, 0.02));
-  border: 1px solid rgba(255, 184, 0, 0.15);
+.mavyx-confidence-ring .fill {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 6;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.mavyx-rec-no-trade {
-  background: var(--mavyx-glass);
-  border: 1px solid var(--mavyx-glass-border);
-}
-
-/* Glowing border animation */
-.mavyx-rec-card::before {
-  content: '';
+.mavyx-confidence-ring .center-text {
   position: absolute;
-  inset: -2px;
-  border-radius: 22px;
-  background: conic-gradient(from 0deg, transparent 70%, var(--mavyx-gold) 100%);
-  animation: borderRotate 4s linear infinite;
-  z-index: -1;
-  opacity: 0;
-  transition: opacity 0.5s ease;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
-.mavyx-rec-card:hover::before {
-  opacity: 1;
+.mavyx-confidence-ring .percentage {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+  line-height: 1;
 }
 
-@keyframes borderRotate {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+.mavyx-confidence-ring .label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin-top: 2px;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   CONFIDENCE BAR
-   ═══════════════════════════════════════════════════════════════ */
-.mavyx-confidence-track {
-  height: 8px;
-  background: rgba(255, 255, 255, 0.03);
+/* ─── Evidence Cards ──────────────────────────────────────────── */
+.mavyx-evidence-card {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: 4px;
-  overflow: hidden;
-  position: relative;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
-.mavyx-confidence-fill {
-  height: 100%;
-  border-radius: 4px;
-  position: relative;
-  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+.mavyx-evidence-card:hover {
+  border-color: var(--border-hover);
 }
 
-.mavyx-confidence-fill::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: inherit;
-  box-shadow: 0 0 10px currentColor;
+.mavyx-evidence-card .agent-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
 }
 
-.confidence-high { background: linear-gradient(90deg, #00C853, #00FF88); color: #00FF88; }
-.confidence-medium { background: linear-gradient(90deg, #FFB800, #FFD54F); color: #FFB800; }
-.confidence-low { background: linear-gradient(90deg, #FF2D55, #FF5252); color: #FF2D55; }
+.mavyx-evidence-card .signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
 
-/* ═══════════════════════════════════════════════════════════════
-   ANIMATED BADGES
-   ═══════════════════════════════════════════════════════════════ */
-.mavyx-badge {
+.signal-bullish { background: var(--green-dim); color: var(--green); }
+.signal-bearish { background: var(--red-dim); color: var(--red); }
+.signal-neutral { background: rgba(104,104,120,0.1); color: var(--text-tertiary); }
+
+/* ─── Market Bias ─────────────────────────────────────────────── */
+.bias-bullish { color: var(--green); }
+.bias-bearish { color: var(--red); }
+.bias-neutral { color: var(--text-secondary); }
+.bias-mixed { color: var(--orange); }
+
+/* ─── Recommendation Badge ────────────────────────────────────── */
+.mavyx-rec-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-family: 'Orbitron', monospace;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
 }
 
-.mavyx-badge-bullish {
-  background: rgba(0, 255, 136, 0.1);
-  color: #00FF88;
-  border: 1px solid rgba(0, 255, 136, 0.2);
-  box-shadow: 0 0 10px rgba(0, 255, 136, 0.1);
+.rec-monitor { background: var(--blue-dim); color: var(--blue); }
+.rec-wait { background: var(--orange-dim); color: var(--orange); }
+.rec-prepare { background: var(--gold-dim); color: var(--gold); }
+.rec-strong { background: var(--green-dim); color: var(--green); }
+.rec-high-risk { background: var(--red-dim); color: var(--red); }
+.rec-avoid { background: rgba(255,59,48,0.15); color: var(--red); }
+
+/* ─── Agent Agreement Matrix ──────────────────────────────────── */
+.mavyx-agreement-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28px, 1fr));
+  gap: 3px;
 }
 
-.mavyx-badge-bearish {
-  background: rgba(255, 45, 85, 0.1);
-  color: #FF2D55;
-  border: 1px solid rgba(255, 45, 85, 0.2);
-  box-shadow: 0 0 10px rgba(255, 45, 85, 0.1);
-}
-
-.mavyx-badge-neutral {
-  background: rgba(107, 107, 128, 0.1);
-  color: #6B6B80;
-  border: 1px solid rgba(107, 107, 128, 0.2);
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   LOADING ANIMATIONS
-   ═══════════════════════════════════════════════════════════════ */
-.mavyx-loader {
-  width: 40px;
-  height: 40px;
-  border: 2px solid var(--mavyx-glass-border);
-  border-top-color: var(--mavyx-gold);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Pulse ring animation */
-.mavyx-pulse-ring {
-  position: relative;
-}
-
-.mavyx-pulse-ring::after {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  border-radius: inherit;
-  border: 2px solid var(--mavyx-gold);
-  animation: pulseRing 2s ease-out infinite;
-}
-
-@keyframes pulseRing {
-  0% { transform: scale(1); opacity: 0.6; }
-  100% { transform: scale(1.3); opacity: 0; }
-}
-
-/* Typing animation */
-.mavyx-typing {
-  display: inline-flex;
-  gap: 4px;
-}
-
-.mavyx-typing span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--mavyx-gold);
-  animation: typing 1.4s ease-in-out infinite;
-}
-
-.mavyx-typing span:nth-child(2) { animation-delay: 0.2s; }
-.mavyx-typing span:nth-child(3) { animation-delay: 0.4s; }
-
-@keyframes typing {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.3; }
-  30% { transform: translateY(-8px); opacity: 1; }
+.mavyx-agreement-cell {
+  width: 28px;
+  height: 28px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   PAGE TRANSITIONS
+   ANIMATIONS — Per MEIDS §5.18
+   "Animations must communicate state changes, not decoration"
    ═══════════════════════════════════════════════════════════════ */
-.mavyx-page-enter {
-  animation: pageEnter 0.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
-@keyframes pageEnter {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-    filter: blur(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-/* Stagger children */
-.mavyx-stagger > * {
-  opacity: 0;
-  animation: staggerIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-}
-
-.mavyx-stagger > *:nth-child(1) { animation-delay: 0.1s; }
-.mavyx-stagger > *:nth-child(2) { animation-delay: 0.2s; }
-.mavyx-stagger > *:nth-child(3) { animation-delay: 0.3s; }
-.mavyx-stagger > *:nth-child(4) { animation-delay: 0.4s; }
-.mavyx-stagger > *:nth-child(5) { animation-delay: 0.5s; }
-.mavyx-stagger > *:nth-child(6) { animation-delay: 0.6s; }
-.mavyx-stagger > *:nth-child(7) { animation-delay: 0.7s; }
-
-@keyframes staggerIn {
-  from { opacity: 0; transform: translateY(15px); }
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in { animation: fadeIn 0.2s ease; }
+.animate-slide-up { animation: slideUp 0.3s ease; }
+
+/* Loading skeleton — Per MEIDS §5.19 */
+.mavyx-skeleton {
+  background: linear-gradient(90deg, var(--bg-tertiary) 25%, var(--bg-elevated) 50%, var(--bg-tertiary) 75%);
+  background-size: 200% 100%;
+  animation: skeleton 1.5s ease infinite;
+  border-radius: 4px;
+}
+
+@keyframes skeleton {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 /* ═══════════════════════════════════════════════════════════════
    UTILITY CLASSES
    ═══════════════════════════════════════════════════════════════ */
-.font-orbitron { font-family: 'Orbitron', monospace; }
-.font-rajdhani { font-family: 'Rajdhani', sans-serif; }
+.text-gold { color: var(--gold); }
+.text-blue { color: var(--blue); }
+.text-green { color: var(--green); }
+.text-red { color: var(--red); }
+.text-orange { color: var(--orange); }
+.text-dim { color: var(--text-secondary); }
+.text-ghost { color: var(--text-tertiary); }
 
-.text-gold { color: var(--mavyx-gold); }
-.text-cyan { color: var(--mavyx-cyan); }
-.text-dim { color: var(--mavyx-text-dim); }
+.bg-elevated { background: var(--bg-elevated); }
+.bg-surface { background: var(--bg-surface); }
 
-.glow-gold { text-shadow: 0 0 20px rgba(201, 168, 76, 0.5); }
-.glow-cyan { text-shadow: 0 0 20px rgba(0, 240, 255, 0.5); }
+.border-subtle { border: 1px solid var(--border); }
 
-.border-glow-gold {
-  box-shadow: 0 0 15px rgba(201, 168, 76, 0.1), inset 0 0 15px rgba(201, 168, 76, 0.05);
-}
+.gap-xs { gap: 4px; }
+.gap-sm { gap: 8px; }
+.gap-md { gap: 12px; }
+.gap-lg { gap: 16px; }
