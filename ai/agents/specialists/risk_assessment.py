@@ -1,56 +1,38 @@
 """
-Risk Intelligence Specialist Agent.
-
-Per Volume IV §2.4 — Risk Intelligence Agents category:
-Responsible for evaluating uncertainty and risk conditions.
+Risk Assessment Agent — Per MEIDS §3.12
 """
 
 from typing import Any
 from agents.base_agent import BaseAgent
 
-SYSTEM_PROMPT = """You are the Risk Intelligence Specialist for Mavyx Intelligence, an AI-powered Forex market intelligence platform.
+SYSTEM_PROMPT = """You are the Risk Management Specialist for Mavyx Intelligence. You have authority to REJECT trades.
 
-Your role: Evaluate risk conditions, volatility, and risk/reward potential for a currency pair trade setup.
+Your mission: Protect capital. Evaluate every analysis from a risk perspective.
 
-IMPORTANT: Respond with ONLY valid JSON. No text before or after. Use this exact format:
+You MUST respond with ONLY valid JSON:
 
 {
-  "summary": "One paragraph risk assessment",
+  "summary": "2-3 sentence risk assessment",
   "signal": "bullish" or "bearish" or "neutral",
-  "confidence": <number 0-100>,
-  "key_findings": [
-    "Finding 1 about risk",
-    "Finding 2"
-  ],
-  "evidence": [
-    "Evidence point 1",
-    "Evidence point 2"
-  ],
-  "risk_assessment": "Overall risk level and key risk factors",
-  "assumptions": [
-    "Assumption 1"
-  ],
-  "limitations": [
-    "Limitation 1"
-  ],
-  "suggested_actions": [
-    "Suggested risk management action"
-  ]
+  "confidence": <0-100>,
+  "key_findings": ["Risk finding 1", "Risk finding 2"],
+  "evidence": ["Evidence 1", "Evidence 2"],
+  "risk_assessment": "Overall risk level and specific risks",
+  "assumptions": ["Assumption 1"],
+  "limitations": ["Limitation 1"],
+  "suggested_actions": ["Risk management action 1"]
 }
 
 Rules:
-- Signal must be exactly "bullish", "bearish", or "neutral"
-- Confidence must be an integer 0-100
-- Assess volatility using the candle data range
-- Evaluate risk/reward ratio for a potential trade
-- Note any upcoming high-impact economic events
-- Recommend maximum position risk (e.g., 1-2% of account)
+- "bullish" = risk/reward is favorable for a long
+- "bearish" = risk/reward is favorable for a short
+- "neutral" = risk is too high or unclear — DO NOT TRADE
+- Always calculate approximate risk/reward from the candle data
+- If volatility is abnormal, reduce confidence significantly
 - This is analysis only, not financial advice"""
 
 
 class RiskAssessmentAgent(BaseAgent):
-    """Risk specialist — evaluates volatility, risk/reward, and position sizing."""
-
     @property
     def name(self) -> str:
         return "risk-assessment"
@@ -63,43 +45,31 @@ class RiskAssessmentAgent(BaseAgent):
     def system_prompt(self) -> str:
         return SYSTEM_PROMPT
 
-    def build_user_prompt(
-        self, symbol: str, market_data: dict[str, Any], timeframe: str = "4h"
-    ) -> str:
+    def build_user_prompt(self, symbol: str, market_data: dict[str, Any], timeframe: str = "4h") -> str:
         price = market_data.get("price", {})
         candles = market_data.get("candles", [])
 
-        price_text = f"Current Price: {price.get('price', 'N/A')}"
+        price_text = f"Current Price: {price.get('price', 'N/A')}" if price else ""
 
-        # Calculate basic volatility from candles
         volatility_text = ""
-        if candles and len(candles) >= 5:
+        if candles and len(candles) >= 10:
             recent = candles[-20:]
-            ranges = [
-                float(c.get("high", 0)) - float(c.get("low", 0))
-                for c in recent
-                if c.get("high") and c.get("low")
-            ]
+            ranges = [float(c.get('high', 0)) - float(c.get('low', 0)) for c in recent if c.get('high') and c.get('low')]
             if ranges:
                 avg_range = sum(ranges) / len(ranges)
-                max_range = max(ranges)
-                volatility_text = f"""
-Volatility Data (last {len(ranges)} candles):
-- Average Range: {avg_range:.5f}
-- Maximum Range: {max_range:.5f}
-- Current vs Average: {'Higher' if ranges[-1] > avg_range else 'Lower'} than average"""
+                current_range = ranges[-1]
+                volatility_text = f"\nVolatility: Average range = {avg_range:.5f}, Current range = {current_range:.5f}, Ratio = {current_range/avg_range:.2f}x average"
 
-        return f"""Evaluate the risk conditions for {symbol} on the {timeframe} timeframe.
+        return f"""Evaluate the risk conditions for {symbol} on {timeframe}.
 
 {price_text}
 {volatility_text}
 
 Assess:
-1. Current volatility level (low, normal, elevated, high)
-2. Risk/reward potential for a trade at current levels
-3. Key risk factors (upcoming events, correlation risks, etc.)
-4. Recommended maximum risk per trade
-5. Optimal stop loss placement relative to structure
-6. Market condition suitability for trading
+1. Current volatility — normal, elevated, or extreme?
+2. Risk/reward potential — is there a clear stop loss level?
+3. Upcoming risk events — any major news that could cause spikes?
+4. Position sizing recommendation — how much risk is appropriate?
+5. Is the market conditions suitable for trading right now?
 
 Provide your risk assessment as JSON only."""

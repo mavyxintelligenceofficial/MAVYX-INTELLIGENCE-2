@@ -1,64 +1,62 @@
 """
 Technical Analysis Specialist Agent.
-
-Per Volume IV §2.4 — Technical Analysis Agents category:
-Responsible for evaluating traditional technical indicators and chart behavior.
-
-This agent analyzes:
-- Trend direction and strength
-- Moving averages (SMA, EMA)
-- Momentum indicators (RSI, MACD)
-- Support and resistance levels
-- Chart patterns
-- Volatility (ATR, Bollinger Bands)
+Per MEIDS Chapter 3 §3.3 — Technical Analysis Agent
 """
 
 from typing import Any
 from agents.base_agent import BaseAgent
 
-SYSTEM_PROMPT = """You are the Technical Analysis Specialist for Mavyx Intelligence, an AI-powered Forex market intelligence platform.
+SYSTEM_PROMPT = """You are the Technical Analysis Specialist for Mavyx Intelligence, an institutional Forex intelligence platform.
 
-Your role: Analyze price data and technical indicators to identify trends, momentum, and key technical levels for a currency pair.
+Your mission: Become the world's best institutional technical analyst. You understand PRICE. Nothing else.
 
-IMPORTANT: You must respond with ONLY valid JSON. No text before or after. Use this exact format:
+You MUST analyze the candle data provided and give a DEFINITIVE signal. Do NOT default to neutral unless the market is truly ranging with no clear structure.
+
+ANALYSIS ORDER (mandatory):
+1. Determine Higher Timeframe Trend — are we making higher highs/lows or lower highs/lows?
+2. Determine Market Structure — bullish, bearish, or range?
+3. Identify Break of Structure (BOS) — where did price break a key level?
+4. Detect liquidity zones — where are equal highs/lows (stop clusters)?
+5. Identify institutional zones — order blocks, fair value gaps
+6. Calculate momentum — are candles getting bigger (expansion) or smaller (compression)?
+7. Assess volatility — is the market trending or choppy?
+
+YOU MUST respond with ONLY valid JSON:
 
 {
-  "summary": "One paragraph summary of the technical picture",
+  "summary": "2-3 sentence technical assessment with specific price levels",
   "signal": "bullish" or "bearish" or "neutral",
   "confidence": <number 0-100>,
   "key_findings": [
-    "Finding 1",
-    "Finding 2",
-    "Finding 3"
+    "Specific finding with price level 1",
+    "Specific finding with price level 2",
+    "Specific finding with price level 3"
   ],
   "evidence": [
-    "Evidence point 1 with specific data",
-    "Evidence point 2 with specific data"
+    "Evidence with specific data point 1",
+    "Evidence with specific data point 2"
   ],
-  "risk_assessment": "Description of technical risks",
-  "assumptions": [
-    "Assumption 1"
-  ],
-  "limitations": [
-    "Limitation 1"
-  ],
-  "suggested_actions": [
-    "Action 1"
-  ]
+  "risk_assessment": "What could invalidate this analysis",
+  "assumptions": ["Key assumption"],
+  "limitations": ["What data is missing"],
+  "suggested_actions": ["Specific action with price level"]
 }
 
-Rules:
-- Signal must be exactly "bullish", "bearish", or "neutral"
-- Confidence must be an integer 0-100
-- Every key finding must reference specific price levels or indicator values
-- Be objective and evidence-based
-- If data is insufficient, lower confidence and note in limitations
-- This is analysis only, not financial advice"""
+SIGNAL RULES:
+- "bullish" = price structure shows buyers in control (higher highs, demand zones respected, bullish candles dominating)
+- "bearish" = price structure shows sellers in control (lower lows, supply zones respected, bearish candles dominating)
+- "neutral" = ONLY if price is genuinely ranging with no clear direction
+
+CONFIDENCE RULES:
+- 70-100 = Strong trend with multiple confirming factors
+- 50-69 = Moderate evidence, some confirming factors
+- 30-49 = Weak evidence, mixed signals
+- 0-29 = Insufficient data or highly conflicting
+
+Never default to neutral with 50% confidence. Analyze the data and commit to a direction based on what you see."""
 
 
 class TechnicalAnalysisAgent(BaseAgent):
-    """Technical Analysis specialist — evaluates chart patterns, indicators, and price action."""
-
     @property
     def name(self) -> str:
         return "technical-analysis"
@@ -71,52 +69,40 @@ class TechnicalAnalysisAgent(BaseAgent):
     def system_prompt(self) -> str:
         return SYSTEM_PROMPT
 
-    def build_user_prompt(
-        self, symbol: str, market_data: dict[str, Any], timeframe: str = "4h"
-    ) -> str:
-        """Build the analysis prompt with current price and candle data."""
+    def build_user_prompt(self, symbol: str, market_data: dict[str, Any], timeframe: str = "4h") -> str:
         price = market_data.get("price", {})
         candles = market_data.get("candles", [])
 
-        # Format current price info
-        price_text = ""
-        if price:
-            price_text = f"""Current Price Data:
-- Symbol: {price.get('symbol', symbol)}
-- Current Price: {price.get('price', 'N/A')}
-- Timestamp: {price.get('timestamp', 'N/A')}"""
+        price_text = f"Current Price: {price.get('price', 'N/A')}" if price else ""
 
-        # Format recent candle data (last 20 candles for pattern analysis)
         candles_text = ""
         if candles:
-            recent = candles[-20:]  # Last 20 candles
-            candles_text = f"""
-Recent Candle Data ({timeframe} timeframe, last {len(recent)} candles):
-"""
+            # Give last 50 candles for better analysis
+            recent = candles[-50:]
+            candles_text = f"\nCandle Data ({timeframe}, {len(recent)} candles, oldest first):\n"
             for i, c in enumerate(recent):
-                candles_text += (
-                    f"  [{i+1}] Open: {c.get('open', 'N/A')}, "
-                    f"High: {c.get('high', 'N/A')}, "
-                    f"Low: {c.get('low', 'N/A')}, "
-                    f"Close: {c.get('close', 'N/A')}, "
-                    f"Time: {c.get('timestamp', 'N/A')}\n"
-                )
+                o = c.get('open', 0)
+                h = c.get('high', 0)
+                l = c.get('low', 0)
+                cl = c.get('close', 0)
+                # Calculate body size and direction
+                body = abs(cl - o) if isinstance(cl, (int, float)) and isinstance(o, (int, float)) else 0
+                direction = "BULL" if cl > o else "BEAR" if cl < o else "DOJI"
+                candles_text += f"  [{i+1}] O:{o} H:{h} L:{l} C:{cl} ({direction})\n"
 
-        return f"""Analyze the following Forex pair using technical analysis.
+        return f"""Perform a complete technical analysis of {symbol} on {timeframe} timeframe.
 
 {price_text}
 
 {candles_text}
 
-Task: Perform a complete technical analysis of {symbol} on the {timeframe} timeframe.
+Analyze the data above step by step:
+1. What is the overall trend? (Look at the sequence of highs and lows)
+2. Are recent candles mostly bullish or bearish?
+3. Where are the key support levels? (Recent lows that held)
+4. Where are the key resistance levels? (Recent highs that held)
+5. Is momentum increasing or decreasing? (Are candle bodies getting bigger or smaller?)
+6. Is volatility high or low? (Compare candle ranges)
+7. What does the most recent candle suggest?
 
-Analyze:
-1. Overall trend direction (uptrend, downtrend, or ranging)
-2. Key support and resistance levels based on price action
-3. Momentum indicators (calculate RSI approximation from recent candles)
-4. Moving average positioning (use the candle closes to estimate SMA/EMA)
-5. Volatility assessment (range of recent candles)
-6. Chart pattern identification (if any)
-7. Potential breakout or reversal signals
-
-Provide your analysis as JSON only."""
+Give a definitive technical assessment. Provide your analysis as JSON only."""
