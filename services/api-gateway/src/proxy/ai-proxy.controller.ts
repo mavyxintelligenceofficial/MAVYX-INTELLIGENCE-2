@@ -36,6 +36,20 @@ export class AiProxyController {
     }
   }
 
+  @Post('assistant')
+  async assistant(@Body() body: any, @Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/assistant`, body, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   @Post('generate')
   async generate(@Body() body: any, @Req() request: Request) {
     try {

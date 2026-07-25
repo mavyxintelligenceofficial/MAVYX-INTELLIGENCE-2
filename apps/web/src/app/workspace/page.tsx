@@ -4,9 +4,8 @@ import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
 import { useAIStore } from '@/features/ai/store';
-import { generateAssistantResponse } from '@/features/ai/assistant';
 import { getQuote, getCandles } from '@/features/market/api';
-import { analyzeSymbol } from '@/features/ai/api';
+import { analyzeSymbol, chatWithAssistant } from '@/features/ai/api';
 import type { Quote } from '@/features/market/types';
 import AppLayout from '@/components/layout/AppLayout';
 import dynamic from 'next/dynamic';
@@ -102,7 +101,7 @@ export default function WorkspacePage() {
         <div style={{ flex: 1 }} />
 
         {/* Run Analysis Button */}
-        <button onClick={handleAnalyze} disabled={ai.isLoading} className="mavyx-btn mavyx-btn-primary" style={{ whiteSpace: 'nowrap' }}>
+        <button id="run-analysis-btn" onClick={handleAnalyze} disabled={ai.isLoading} className="mavyx-btn mavyx-btn-primary" style={{ whiteSpace: 'nowrap' }}>
           {ai.isLoading ? 'Analyzing...' : 'Run Analysis'}
         </button>
       </div>
@@ -333,31 +332,89 @@ function ExecutiveBriefPanel({ result, isLoading, expandedAgent, setExpandedAgen
 function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
   const ai = useAIStore();
   const auth = useAuthStore();
+  const router = useRouter();
   const [input, setInput] = useState('');
+  const [isThinking, setIsThinking] = useState(false);
 
   // Initialize welcome message if no messages exist
   useEffect(() => {
     if (ai.chatMessages.length === 0) {
       const userName = auth.user?.fullName || auth.user?.email?.split('@')[0] || 'there';
-      ai.addChatMessage({ role: 'assistant', text: `Hey ${userName}! 👋 I'm your Mavyx AI assistant. I can help you understand analyses, explain how the platform works, answer trading questions, or just chat. What would you like to know?` });
+      ai.addChatMessage({ role: 'assistant', text: `Hey ${userName}! 👋 I'm your Mavyx AI assistant — the intelligent admin of this platform. I can:\n\n• Run analyses for any currency pair\n• Navigate you to any page\n• Explain features and trading concepts\n• Adjust your settings\n• Answer anything about the platform\n\nJust ask me anything! What would you like to do?` });
     }
   }, []);
 
-  function handleSend() {
-    if (!input.trim()) return;
+  async function handleSend() {
+    if (!input.trim() || !auth.token) return;
     const question = input.trim();
     setInput('');
     ai.addChatMessage({ role: 'user', text: question });
+    setIsThinking(true);
 
-    const response = generateAssistantResponse(
-      question,
-      { symbol, result, userName: auth.user?.fullName },
-      ai.chatMessages
-    );
+    try {
+      // Build context
+      const context: Record<string, any> = {
+        symbol: symbol,
+        timeframe: ai.timeframe,
+        user_name: auth.user?.fullName || auth.user?.email?.split('@')[0],
+        current_page: 'workspace',
+      };
+      if (result) {
+        context.analysis_result = {
+          symbol: result.symbol,
+          recommendation: result.recommendation,
+          confidence: result.confidence,
+        };
+      }
 
-    setTimeout(() => {
-      ai.addChatMessage({ role: 'assistant', text: response });
-    }, 300 + Math.random() * 500); // Slight delay for natural feel
+      // Call real AI API
+      const response = await chatWithAssistant(
+        auth.token,
+        question,
+        ai.chatMessages,
+        context,
+      );
+
+      // Add AI response
+      ai.addChatMessage({ role: 'assistant', text: response.response });
+
+      // Execute action if provided
+      if (response.action) {
+        executeAction(response.action);
+      }
+
+    } catch (err: any) {
+      ai.addChatMessage({
+        role: 'assistant',
+        text: `I'm having trouble connecting to my AI brain right now. Error: ${err?.message || 'Unknown'}. Please try again in a moment.`,
+      });
+    } finally {
+      setIsThinking(false);
+    }
+  }
+
+  function executeAction(action: any) {
+    switch (action.type) {
+      case 'navigate':
+        router.push(action.target);
+        break;
+      case 'analyze':
+        if (action.symbol) ai.setSymbol(action.symbol);
+        if (action.timeframe) ai.setTimeframe(action.timeframe);
+        // Trigger analysis by clicking the button programmatically
+        document.getElementById('run-analysis-btn')?.click();
+        break;
+      case 'logout':
+        auth.logout();
+        router.push('/login');
+        break;
+      case 'watchlist_add':
+        // Could add to watchlist here
+        break;
+      case 'watchlist_remove':
+        // Could remove from watchlist here
+        break;
+    }
   }
 
   return (
@@ -380,6 +437,23 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
             {msg.text}
           </div>
         ))}
+        {isThinking && (
+          <div style={{
+            padding: '8px 10px', borderRadius: 4, fontSize: 12,
+            background: 'var(--bg-primary)', border: '1px solid var(--border)',
+            alignSelf: 'flex-start', display: 'flex', gap: 4, alignItems: 'center',
+          }}>
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary)' }}>Thinking</span>
+            <div style={{ display: 'flex', gap: 3 }}>
+              {[0,1,2].map(i => (
+                <div key={i} style={{
+                  width: 4, height: 4, borderRadius: '50%', background: 'var(--gold)',
+                  opacity: 0.4, animation: `fadeIn 0.8s ease ${i * 0.2}s infinite alternate`,
+                }} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Input */}

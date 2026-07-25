@@ -77,6 +77,37 @@ async def system_health():
     return await checker.check_all()
 
 
+class AssistantRequest(BaseModel):
+    message: str
+    chat_history: list = []
+    context: dict = {}
+
+
+@app.post("/assistant")
+async def assistant(body: AssistantRequest, user: dict = Depends(require_auth)):
+    """AI Assistant — real conversational AI powered by Z.ai.
+    
+    The assistant is the admin of the platform. It can:
+    - Answer questions about the platform
+    - Navigate to pages
+    - Run analyses
+    - Adjust settings
+    - Help with anything
+    """
+    from assistant import AIAssistant
+
+    try:
+        ai = AIAssistant()
+        result = await ai.chat(
+            user_message=body.message,
+            chat_history=body.chat_history,
+            context=body.context,
+        )
+        return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.post("/generate", response_model=GenerateResponse)
 async def generate(body: GenerateRequest, _user: dict = Depends(require_auth)):
     try:
