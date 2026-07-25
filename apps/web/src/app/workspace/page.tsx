@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, FormEvent, useCallback } from 'react';
+import { useState, useEffect, FormEvent, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
 import { useAIStore } from '@/features/ai/store';
@@ -335,6 +335,12 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
   const router = useRouter();
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [ai.chatMessages, isThinking]);
 
   // Initialize welcome message if no messages exist
   useEffect(() => {
@@ -454,6 +460,8 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
             </div>
           </div>
         )}
+        {/* Scroll anchor — always at bottom */}
+        <div ref={messagesEndRef} />
       </div>
 
       {/* Input */}
