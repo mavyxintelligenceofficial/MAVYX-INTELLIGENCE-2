@@ -28,7 +28,7 @@ export default function LoginPage() {
     try {
       const data = await login({ email, password });
       setSession(data.user, data.access_token);
-      router.push('/workspace');
+      router.push('/welcome');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed.');
     } finally { setIsLoading(false); }

@@ -26,7 +26,7 @@ export default function HomePage() {
   const { token, isHydrated, hydrate } = useAuthStore();
 
   useEffect(() => { hydrate(); }, [hydrate]);
-  useEffect(() => { if (isHydrated && token) router.replace('/workspace'); }, [isHydrated, token, router]);
+  useEffect(() => { if (isHydrated && token) router.replace('/welcome'); }, [isHydrated, token, router]);
 
   return (
     <main style={{ background: 'var(--bg-primary)', minHeight: '100vh', overflow: 'auto' }}>

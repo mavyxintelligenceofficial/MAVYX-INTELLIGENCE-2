@@ -4,6 +4,7 @@ import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
 import { useAIStore } from '@/features/ai/store';
+import { generateAssistantResponse } from '@/features/ai/assistant';
 import { getQuote, getCandles } from '@/features/market/api';
 import { analyzeSymbol } from '@/features/ai/api';
 import type { Quote } from '@/features/market/types';
@@ -331,12 +332,14 @@ function ExecutiveBriefPanel({ result, isLoading, expandedAgent, setExpandedAgen
 
 function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
   const ai = useAIStore();
+  const auth = useAuthStore();
   const [input, setInput] = useState('');
 
   // Initialize welcome message if no messages exist
   useEffect(() => {
     if (ai.chatMessages.length === 0) {
-      ai.addChatMessage({ role: 'assistant', text: `Welcome to the AI Assistant. I have access to the current analysis for ${symbol}. Ask me anything about the market intelligence.` });
+      const userName = auth.user?.fullName || auth.user?.email?.split('@')[0] || 'there';
+      ai.addChatMessage({ role: 'assistant', text: `Hey ${userName}! 👋 I'm your Mavyx AI assistant. I can help you understand analyses, explain how the platform works, answer trading questions, or just chat. What would you like to know?` });
     }
   }, []);
 
@@ -346,35 +349,15 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
     setInput('');
     ai.addChatMessage({ role: 'user', text: question });
 
-    // Generate contextual response based on analysis
-    let response = '';
-    if (!result) {
-      response = 'No analysis has been run yet. Click "Run Analysis" first, then ask me about the results.';
-    } else if (question.toLowerCase().includes('confidence')) {
-      response = `The current confidence is ${result.confidence}%. This is calculated from ${result.successful_agents} specialist agents. The consensus shows ${result.agent_consensus?.bullish || 0} bullish, ${result.agent_consensus?.bearish || 0} bearish, and ${result.agent_consensus?.neutral || 0} neutral signals.`;
-    } else if (question.toLowerCase().includes('risk')) {
-      const warnings = result.risk_warnings || [];
-      response = warnings.length > 0
-        ? `Key risks identified:\n${warnings.map((w: string) => `• ${w}`).join('\n')}`
-        : 'No significant risk warnings were identified in the current analysis.';
-    } else if (question.toLowerCase().includes('evidence') || question.toLowerCase().includes('why')) {
-      const evidence = result.key_evidence || [];
-      response = evidence.length > 0
-        ? `Key evidence supporting the analysis:\n${evidence.map((e: string) => `• ${e}`).join('\n')}`
-        : 'No specific evidence was highlighted in the analysis.';
-    } else if (question.toLowerCase().includes('recommendation') || question.toLowerCase().includes('should')) {
-      response = `The Executive Engine recommends: ${result.recommendation?.toUpperCase()} with ${result.confidence}% confidence. ${result.executive_summary?.substring(0, 200) || ''}`;
-    } else if (question.toLowerCase().includes('agent') || question.toLowerCase().includes('who')) {
-      const breakdown = result.agent_breakdown || [];
-      const summary = breakdown.map((a: any) => `${formatAgent(a.agent_id)}: ${a.signal} (${a.confidence}%)`).join('\n');
-      response = `Agent breakdown:\n${summary}`;
-    } else {
-      response = `Based on the current ${symbol} analysis:\n\n• Recommendation: ${result.recommendation?.toUpperCase()}\n• Confidence: ${result.confidence}%\n• ${result.executive_summary?.substring(0, 150) || 'No summary available'}...\n\nAsk me about confidence, risk, evidence, agents, or the recommendation for more details.`;
-    }
+    const response = generateAssistantResponse(
+      question,
+      { symbol, result, userName: auth.user?.fullName },
+      ai.chatMessages
+    );
 
     setTimeout(() => {
       ai.addChatMessage({ role: 'assistant', text: response });
-    }, 500);
+    }, 300 + Math.random() * 500); // Slight delay for natural feel
   }
 
   return (
