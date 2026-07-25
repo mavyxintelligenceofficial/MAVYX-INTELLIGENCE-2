@@ -30,7 +30,6 @@ export async function checkAiHealth(): Promise<{ status: string; service: string
 
 /**
  * Send a message to the AI Assistant.
- * Returns response text and optional action to execute.
  */
 export async function chatWithAssistant(
   token: string,
@@ -46,5 +45,35 @@ export async function chatWithAssistant(
       chat_history: chatHistory.map(m => ({ role: m.role, text: m.text })),
       context,
     },
+  });
+}
+
+/**
+ * Request AI review of a journal entry.
+ * Per MEIDS Ch.13 §13.4: AI Trade Review
+ */
+export async function reviewJournalEntry(
+  token: string,
+  analysis: any,
+): Promise<any> {
+  return apiRequest<any>('/ai/journal/review', {
+    method: 'POST',
+    token,
+    body: { analysis },
+  });
+}
+
+/**
+ * Generate weekly intelligence review.
+ * Per MEIDS Ch.13 §13.15: Weekly Intelligence Review
+ */
+export async function generateWeeklyReview(
+  token: string,
+  journalEntries: any[],
+): Promise<any> {
+  return apiRequest<any>('/ai/journal/weekly-review', {
+    method: 'POST',
+    token,
+    body: { journal_entries: journalEntries },
   });
 }

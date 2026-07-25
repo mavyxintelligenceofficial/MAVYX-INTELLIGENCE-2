@@ -85,17 +85,8 @@ class AssistantRequest(BaseModel):
 
 @app.post("/assistant")
 async def assistant(body: AssistantRequest, user: dict = Depends(require_auth)):
-    """AI Assistant — real conversational AI powered by Z.ai.
-    
-    The assistant is the admin of the platform. It can:
-    - Answer questions about the platform
-    - Navigate to pages
-    - Run analyses
-    - Adjust settings
-    - Help with anything
-    """
+    """AI Assistant — real conversational AI powered by Z.ai."""
     from assistant import AIAssistant
-
     try:
         ai = AIAssistant()
         result = await ai.chat(
@@ -104,6 +95,38 @@ async def assistant(body: AssistantRequest, user: dict = Depends(require_auth)):
             context=body.context,
         )
         return result
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+class JournalReviewRequest(BaseModel):
+    analysis: dict
+
+
+@app.post("/journal/review")
+async def journal_review(body: JournalReviewRequest, user: dict = Depends(require_auth)):
+    """AI review of a completed analysis — Per MEIDS Ch.13 §13.4"""
+    from journal_engine import JournalEngine
+    try:
+        engine = JournalEngine()
+        review = await engine.review_analysis(body.analysis)
+        return review
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+class WeeklyReviewRequest(BaseModel):
+    journal_entries: list
+
+
+@app.post("/journal/weekly-review")
+async def weekly_review(body: WeeklyReviewRequest, user: dict = Depends(require_auth)):
+    """Weekly intelligence review — Per MEIDS Ch.13 §13.15"""
+    from journal_engine import JournalEngine
+    try:
+        engine = JournalEngine()
+        review = await engine.generate_weekly_review(body.journal_entries)
+        return review
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 

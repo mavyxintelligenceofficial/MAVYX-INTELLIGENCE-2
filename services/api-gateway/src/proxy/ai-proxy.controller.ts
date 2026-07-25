@@ -64,6 +64,34 @@ export class AiProxyController {
     }
   }
 
+  @Post('journal/review')
+  async journalReview(@Body() body: any, @Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/journal/review`, body, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  @Post('journal/weekly-review')
+  async weeklyReview(@Body() body: any, @Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/journal/weekly-review`, body, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   @Get('health')
   async health() {
     try {
