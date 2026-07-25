@@ -1,57 +1,62 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, useEffect, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
+import { useAIStore } from '@/features/ai/store';
 import { getQuote, getCandles } from '@/features/market/api';
 import { analyzeSymbol } from '@/features/ai/api';
-import type { AnalysisResult } from '@/features/ai/types';
 import type { Quote } from '@/features/market/types';
 import AppLayout from '@/components/layout/AppLayout';
 import dynamic from 'next/dynamic';
 
-// Dynamic import for chart (no SSR)
 const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), { ssr: false });
 
 const TIMEFRAMES = [
   { value: '1h', label: '1H' },
   { value: '4h', label: '4H' },
   { value: '1d', label: '1D' },
+  { value: '1w', label: '1W' },
 ];
 
 export default function WorkspacePage() {
   const router = useRouter();
   const { token, isHydrated, hydrate } = useAuthStore();
+  const ai = useAIStore();
 
-  const [symbol, setSymbol] = useState('EUR/USD');
-  const [timeframe, setTimeframe] = useState('4h');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [candles, setCandles] = useState<any[]>([]);
-  const [result, setResult] = useState<AnalysisResult | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [expandedAgent, setExpandedAgent] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'brief' | 'assistant'>('brief');
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (isHydrated && !token) router.replace('/login'); }, [isHydrated, token, router]);
 
-  // Fetch market data when symbol/timeframe changes
-  useEffect(() => {
+  // Fetch market data
+  const fetchMarketData = useCallback(() => {
     if (!token) return;
-    getQuote(token, symbol).then(setQuote).catch(() => {});
-    getCandles(token, symbol, timeframe).then(d => setCandles(d.candles || [])).catch(() => {});
-  }, [token, symbol, timeframe]);
+    getQuote(token, ai.symbol).then(setQuote).catch(() => {});
+    getCandles(token, ai.symbol, ai.timeframe).then(d => setCandles(d.candles || [])).catch(() => {});
+  }, [token, ai.symbol, ai.timeframe]);
+
+  useEffect(() => { fetchMarketData(); }, [fetchMarketData]);
+
+  // Chart refresh callback for live updates
+  const handleChartRefresh = useCallback(() => {
+    fetchMarketData();
+  }, [fetchMarketData]);
 
   async function handleAnalyze(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
-    setIsLoading(true); setError(null);
+    ai.setLoading(true);
     try {
-      const data = await analyzeSymbol(token, symbol, timeframe);
-      setResult(data);
+      const data = await analyzeSymbol(token, ai.symbol, ai.timeframe);
+      ai.setResult(data);
+      setActiveTab('brief');
     } catch (err: any) {
-      setError(err?.message || 'Analysis failed');
-    } finally { setIsLoading(false); }
+      ai.setError(err?.message || 'Analysis failed');
+    }
   }
 
   if (!isHydrated || !token) {
@@ -59,234 +64,371 @@ export default function WorkspacePage() {
   }
 
   return (
-    <AppLayout>
-      {/* ─── Top Controls ──────────────────────────────────────── */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <input
-            type="text" value={symbol}
-            onChange={(e) => setSymbol(e.target.value.toUpperCase())}
-            className="mavyx-input" style={{ width: 120, fontSize: 13, fontWeight: 600 }}
-            placeholder="EUR/USD"
-          />
-          <div style={{ display: 'flex', gap: 2 }}>
-            {TIMEFRAMES.map(tf => (
-              <button key={tf.value}
-                onClick={() => setTimeframe(tf.value)}
-                className="mavyx-btn mavyx-btn-ghost"
-                style={{
-                  padding: '6px 12px', fontSize: 11, fontWeight: 700,
-                  background: timeframe === tf.value ? 'rgba(255,255,255,0.05)' : 'transparent',
-                  color: timeframe === tf.value ? 'var(--text-primary)' : 'var(--text-tertiary)',
-                  borderBottom: timeframe === tf.value ? '2px solid var(--gold)' : '2px solid transparent',
-                  borderRadius: 0,
-                }}>
-                {tf.label}
-              </button>
-            ))}
-          </div>
-          {quote && (
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginLeft: 8 }}>
-              <span className="text-number" style={{ fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>{quote.price}</span>
-              <span className="text-caption">{symbol}</span>
-            </div>
-          )}
+    <AppLayout hasPanel={true}>
+      {/* ─── Top Controls Bar ──────────────────────────────────── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8, flexShrink: 0 }}>
+        {/* Symbol Input */}
+        <input
+          type="text" value={ai.symbol}
+          onChange={(e) => ai.setSymbol(e.target.value.toUpperCase())}
+          className="mavyx-input" style={{ width: 110, fontWeight: 700, fontSize: 14 }}
+          placeholder="EUR/USD"
+        />
+
+        {/* Timeframe Buttons */}
+        <div style={{ display: 'flex', gap: 1, background: 'var(--bg-tertiary)', borderRadius: 4, padding: 2 }}>
+          {TIMEFRAMES.map(tf => (
+            <button key={tf.value} onClick={() => ai.setTimeframe(tf.value)}
+              style={{
+                padding: '5px 12px', fontSize: 11, fontWeight: 700, borderRadius: 3, border: 'none', cursor: 'pointer',
+                background: ai.timeframe === tf.value ? 'var(--gold)' : 'transparent',
+                color: ai.timeframe === tf.value ? 'var(--bg-primary)' : 'var(--text-tertiary)',
+                transition: 'all 0.15s ease',
+              }}>
+              {tf.label}
+            </button>
+          ))}
         </div>
-        <button onClick={handleAnalyze} disabled={isLoading} className="mavyx-btn mavyx-btn-primary">
-          {isLoading ? 'Analyzing...' : 'Run Analysis'}
+
+        {/* Price Display */}
+        {quote && (
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginLeft: 4 }}>
+            <span className="text-number" style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>{quote.price}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>{ai.symbol}</span>
+          </div>
+        )}
+
+        <div style={{ flex: 1 }} />
+
+        {/* Run Analysis Button */}
+        <button onClick={handleAnalyze} disabled={ai.isLoading} className="mavyx-btn mavyx-btn-primary" style={{ whiteSpace: 'nowrap' }}>
+          {ai.isLoading ? 'Analyzing...' : 'Run Analysis'}
         </button>
       </div>
 
-      {error && (
-        <div style={{ marginBottom: 8, padding: '6px 10px', background: 'var(--red-dim)', borderRadius: 4, fontSize: 12, color: 'var(--red)' }}>{error}</div>
-      )}
-
       {/* ─── Main Content: Chart + AI Panel ────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
-        {/* ─── Chart Area (Left - 60%) ─────────────────────────── */}
-        <div style={{ flex: 3, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div className="mavyx-card" style={{ flex: 1, padding: 0, overflow: 'hidden', minHeight: 400 }}>
+      <div style={{ display: 'flex', gap: 8, flex: 1, minHeight: 0, overflow: 'hidden' }}>
+
+        {/* ─── Chart Area (Left) ────────────────────────────────── */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+          <div className="mavyx-card" style={{ flex: 1, padding: 0, overflow: 'hidden', borderRadius: 6 }}>
             {candles.length > 0 ? (
-              <CandlestickChart candles={candles} />
+              <CandlestickChart candles={candles} onRefresh={handleChartRefresh} />
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 32, color: 'var(--text-ghost)', marginBottom: 8 }}>◈</div>
-                  <p className="text-caption">Loading chart data...</p>
+                  <div className="mavyx-skeleton" style={{ width: 200, height: 16, margin: '0 auto 8px' }} />
+                  <p className="text-ghost" style={{ fontSize: 12 }}>Loading chart...</p>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Bottom Info Cards */}
-          <div style={{ display: 'flex', gap: 8 }}>
-            <MiniCard label="Price" value={quote?.price?.toString() || '—'} />
-            <MiniCard label="Timeframe" value={timeframe.toUpperCase()} />
-            <MiniCard label="Candles" value={candles.length.toString()} />
-            <MiniCard label="Last Analysis" value={result?.recommendation?.toUpperCase() || 'None'} valueColor={result ? (result.recommendation === 'buy' ? 'var(--green)' : result.recommendation === 'sell' ? 'var(--red)' : 'var(--orange)') : undefined} />
+          {/* Bottom Info Bar */}
+          <div style={{ display: 'flex', gap: 6, marginTop: 6, flexShrink: 0 }}>
+            <InfoChip label="Price" value={quote?.price?.toString() || '—'} />
+            <InfoChip label="TF" value={ai.timeframe.toUpperCase()} />
+            <InfoChip label="Candles" value={candles.length.toString()} />
+            {ai.result && (
+              <InfoChip label="Signal"
+                value={ai.result.recommendation?.toUpperCase() || '—'}
+                color={ai.result.recommendation === 'buy' ? 'var(--green)' : ai.result.recommendation === 'sell' ? 'var(--red)' : 'var(--orange)'} />
+            )}
           </div>
         </div>
 
-        {/* ─── AI Intelligence Panel (Right - 40%) ─────────────── */}
-        <div style={{ flex: 2, display: 'flex', flexDirection: 'column', gap: 8, minWidth: 320, maxHeight: 'calc(100vh - 160px)', overflowY: 'auto' }}>
-          {isLoading && (
-            <div className="mavyx-card" style={{ textAlign: 'center', padding: 24 }}>
-              <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginBottom: 12 }}>
-                {[0,1,2,3,4,5,6,7,8,9,10].map(i => (
-                  <div key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--gold)', opacity: 0.3, animation: `fadeIn 1s ease ${i * 0.1}s infinite alternate` }} />
-                ))}
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Deploying 11 specialist agents...</p>
-              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>This may take 30-60 seconds</p>
-            </div>
-          )}
+        {/* ─── AI Intelligence Panel (Right) ────────────────────── */}
+        <div style={{ width: 360, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden' }}>
 
-          {result && !isLoading && (
-            <>
-              {/* Executive Summary */}
-              <div className="mavyx-card" style={{ borderColor: 'var(--gold-border)' }}>
-                <div className="text-label text-gold" style={{ marginBottom: 8 }}>Executive Intelligence Brief</div>
-                <div style={{ textAlign: 'center', marginBottom: 12 }}>
-                  <div className={`mavyx-rec-badge rec-${result.recommendation === 'buy' ? 'strong' : result.recommendation === 'sell' ? 'high-risk' : result.recommendation === 'wait' ? 'wait' : 'avoid'}`}>
-                    {result.recommendation === 'buy' ? 'STRONG CANDIDATE' : result.recommendation === 'sell' ? 'HIGH RISK' : result.recommendation === 'wait' ? 'WAIT' : 'AVOID'}
-                  </div>
-                </div>
+          {/* Panel Tabs */}
+          <div style={{ display: 'flex', gap: 0, marginBottom: 0, flexShrink: 0 }}>
+            <button onClick={() => setActiveTab('brief')}
+              style={{
+                flex: 1, padding: '8px 12px', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: activeTab === 'brief' ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                color: activeTab === 'brief' ? 'var(--gold)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'brief' ? '2px solid var(--gold)' : '2px solid transparent',
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+              }}>
+              Executive Brief
+            </button>
+            <button onClick={() => setActiveTab('assistant')}
+              style={{
+                flex: 1, padding: '8px 12px', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                background: activeTab === 'assistant' ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                color: activeTab === 'assistant' ? 'var(--gold)' : 'var(--text-tertiary)',
+                borderBottom: activeTab === 'assistant' ? '2px solid var(--gold)' : '2px solid transparent',
+                letterSpacing: '0.05em', textTransform: 'uppercase',
+              }}>
+              AI Assistant
+            </button>
+          </div>
 
-                {/* Confidence Ring */}
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                  <ConfidenceRing value={result.confidence} />
-                </div>
-
-                {/* Agent Consensus */}
-                <div style={{ marginBottom: 12 }}>
-                  <div className="text-label" style={{ marginBottom: 6 }}>Agent Consensus</div>
-                  <ConsensusRow label="Bullish" count={result.agent_consensus?.bullish || 0} total={(result.agent_consensus?.bullish || 0) + (result.agent_consensus?.bearish || 0) + (result.agent_consensus?.neutral || 0)} color="var(--green)" />
-                  <ConsensusRow label="Bearish" count={result.agent_consensus?.bearish || 0} total={(result.agent_consensus?.bullish || 0) + (result.agent_consensus?.bearish || 0) + (result.agent_consensus?.neutral || 0)} color="var(--red)" />
-                  <ConsensusRow label="Neutral" count={result.agent_consensus?.neutral || 0} total={(result.agent_consensus?.bullish || 0) + (result.agent_consensus?.bearish || 0) + (result.agent_consensus?.neutral || 0)} color="var(--text-tertiary)" />
-                </div>
-              </div>
-
-              {/* Evidence Cards */}
-              <div className="mavyx-card">
-                <div className="text-label" style={{ marginBottom: 8 }}>Evidence Cards</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {result.agent_breakdown?.map(agent => (
-                    <div key={agent.agent_id}
-                      className="mavyx-evidence-card"
-                      onClick={() => setExpandedAgent(expandedAgent === agent.agent_id ? null : agent.agent_id)}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <span className="agent-name">{formatAgent(agent.agent_id)}</span>
-                        <span className={`signal signal-${agent.signal}`}>{agent.signal} {agent.confidence}%</span>
-                      </div>
-                      {expandedAgent === agent.agent_id && (
-                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
-                          <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{agent.summary}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Key Evidence */}
-              {result.key_evidence?.length > 0 && (
-                <div className="mavyx-card">
-                  <div className="text-label" style={{ marginBottom: 8 }}>Key Evidence</div>
-                  {result.key_evidence.map((e, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 6, padding: '4px 0', fontSize: 12, color: 'var(--text-secondary)' }}>
-                      <span className="text-gold">✓</span> {e}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Risk Warnings */}
-              {result.risk_warnings?.length > 0 && (
-                <div className="mavyx-card" style={{ borderColor: 'rgba(255,149,0,0.2)' }}>
-                  <div className="text-label text-orange" style={{ marginBottom: 8 }}>Risk Warnings</div>
-                  {result.risk_warnings.map((w, i) => (
-                    <div key={i} style={{ fontSize: 12, color: 'var(--orange)', padding: '3px 0' }}>• {w}</div>
-                  ))}
-                </div>
-              )}
-
-              {/* Suggested Action */}
-              {result.suggested_action?.direction && result.suggested_action.direction !== 'none' && (
-                <div className="mavyx-card" style={{ borderColor: 'var(--gold-border)' }}>
-                  <div className="text-label text-gold" style={{ marginBottom: 8 }}>Suggested Action</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {[
-                      { l: 'Entry', v: result.suggested_action.entry_zone },
-                      { l: 'Stop Loss', v: result.suggested_action.stop_loss },
-                      { l: 'TP1', v: result.suggested_action.take_profit_1 },
-                      { l: 'TP2', v: result.suggested_action.take_profit_2 },
-                    ].filter(i => i.v && i.v !== 'N/A').map(i => (
-                      <div key={i.l} style={{ padding: '4px 8px', background: 'var(--bg-primary)', borderRadius: 3, border: '1px solid var(--border)' }}>
-                        <div className="text-label" style={{ fontSize: 9 }}>{i.l}</div>
-                        <div className="text-number" style={{ fontSize: 13, fontWeight: 600 }}>{i.v}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Executive Summary Text */}
-              <div className="mavyx-card">
-                <div className="text-label" style={{ marginBottom: 8 }}>Executive Summary</div>
-                <p style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, whiteSpace: 'pre-line' }}>{result.executive_summary}</p>
-              </div>
-
-              {/* Metadata */}
-              <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                <span className="text-ghost" style={{ fontSize: 10 }}>
-                  {result.successful_agents}/{result.total_agents} agents · {result.processing_time_ms}ms
-                </span>
-              </div>
-
-              {/* Disclaimer */}
-              <div style={{ textAlign: 'center', padding: '4px 0' }}>
-                <span style={{ fontSize: 10, color: 'var(--text-ghost)' }}>AI-generated analysis only · Not financial advice</span>
-              </div>
-            </>
-          )}
-
-          {!result && !isLoading && (
-            <div className="mavyx-card" style={{ textAlign: 'center', padding: '40px 16px' }}>
-              <div style={{ fontSize: 28, color: 'var(--text-ghost)', marginBottom: 12 }}>⬡</div>
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No active analysis</p>
-              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>Click "Run Analysis" to deploy specialist agents</p>
-            </div>
-          )}
+          {/* Panel Content */}
+          <div style={{ flex: 1, overflowY: 'auto', background: 'var(--bg-tertiary)', borderRadius: '0 0 6px 6px' }}>
+            {activeTab === 'brief' ? (
+              <ExecutiveBriefPanel result={ai.result} isLoading={ai.isLoading} expandedAgent={expandedAgent} setExpandedAgent={setExpandedAgent} />
+            ) : (
+              <AIAssistantPanel symbol={ai.symbol} result={ai.result} />
+            )}
+          </div>
         </div>
       </div>
     </AppLayout>
   );
 }
 
-/* ─── Sub-components ─────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════
+   SUB-COMPONENTS
+   ═══════════════════════════════════════════════════════════════ */
 
-function MiniCard({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+function InfoChip({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <div className="mavyx-card" style={{ flex: 1, padding: '6px 10px' }}>
-      <div className="text-label" style={{ fontSize: 9, marginBottom: 1 }}>{label}</div>
-      <div className="text-number" style={{ fontSize: 13, fontWeight: 600, color: valueColor || 'var(--text-primary)' }}>{value}</div>
+    <div style={{ padding: '4px 10px', background: 'var(--bg-tertiary)', borderRadius: 4, border: '1px solid var(--border)', display: 'flex', gap: 6, alignItems: 'center' }}>
+      <span className="text-ghost" style={{ fontSize: 10 }}>{label}</span>
+      <span className="text-number" style={{ fontSize: 12, fontWeight: 600, color: color || 'var(--text-primary)' }}>{value}</span>
     </div>
   );
 }
 
-function ConfidenceRing({ value }: { value: number }) {
-  const r = 36, c = 2 * Math.PI * r, offset = c - (value / 100) * c;
+/* ─── Executive Brief Panel ───────────────────────────────────── */
+
+function ExecutiveBriefPanel({ result, isLoading, expandedAgent, setExpandedAgent }: {
+  result: any; isLoading: boolean; expandedAgent: string | null;
+  setExpandedAgent: (id: string | null) => void;
+}) {
+  if (isLoading) {
+    return (
+      <div style={{ padding: 16 }}>
+        <div style={{ textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ display: 'flex', gap: 4, justifyContent: 'center', marginBottom: 12 }}>
+            {[0,1,2,3,4,5,6,7,8,9,10].map(i => (
+              <div key={i} style={{
+                width: 5, height: 5, borderRadius: '50%', background: 'var(--gold)',
+                opacity: 0.3, animation: `fadeIn 1s ease ${i * 0.1}s infinite alternate`,
+              }} />
+            ))}
+          </div>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Deploying 11 specialist agents...</p>
+          <p style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>This may take 30-60 seconds</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div style={{ padding: 24, textAlign: 'center' }}>
+        <div style={{ fontSize: 24, color: 'var(--text-ghost)', marginBottom: 8 }}>⬡</div>
+        <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>No active analysis</p>
+        <p style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>Click "Run Analysis" to deploy specialist agents</p>
+      </div>
+    );
+  }
+
+  const total = (result.agent_consensus?.bullish || 0) + (result.agent_consensus?.bearish || 0) + (result.agent_consensus?.neutral || 0);
+
   return (
-    <div style={{ position: 'relative', width: 88, height: 88 }}>
-      <svg width="88" height="88" viewBox="0 0 88 88" style={{ transform: 'rotate(-90deg)' }}>
-        <circle cx="44" cy="44" r={r} fill="none" stroke="var(--bg-primary)" strokeWidth="5" />
-        <circle cx="44" cy="44" r={r} fill="none" stroke="var(--gold)" strokeWidth="5" strokeLinecap="round"
+    <div style={{ padding: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {/* Recommendation */}
+      <div style={{ textAlign: 'center', padding: '12px 0' }}>
+        <div className={`mavyx-rec-badge rec-${result.recommendation === 'buy' ? 'strong' : result.recommendation === 'sell' ? 'high-risk' : result.recommendation === 'wait' ? 'wait' : 'avoid'}`}
+          style={{ fontSize: 14, padding: '6px 20px' }}>
+          {result.recommendation === 'buy' ? 'STRONG CANDIDATE' : result.recommendation === 'sell' ? 'HIGH RISK' : result.recommendation === 'wait' ? 'WAIT' : 'AVOID'}
+        </div>
+      </div>
+
+      {/* Confidence Ring + Consensus side by side */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <ConfidenceRing value={result.confidence || 0} />
+        <div style={{ flex: 1 }}>
+          <div className="text-label" style={{ marginBottom: 6, fontSize: 9 }}>Agent Consensus</div>
+          <ConsensusRow label="Bullish" count={result.agent_consensus?.bullish || 0} total={total} color="var(--green)" />
+          <ConsensusRow label="Bearish" count={result.agent_consensus?.bearish || 0} total={total} color="var(--red)" />
+          <ConsensusRow label="Neutral" count={result.agent_consensus?.neutral || 0} total={total} color="var(--text-tertiary)" />
+        </div>
+      </div>
+
+      {/* Evidence Cards */}
+      <div>
+        <div className="text-label" style={{ marginBottom: 6, fontSize: 9 }}>Evidence Cards</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+          {result.agent_breakdown?.map((agent: any) => (
+            <div key={agent.agent_id} className="mavyx-evidence-card" style={{ padding: '6px 8px' }}
+              onClick={() => setExpandedAgent(expandedAgent === agent.agent_id ? null : agent.agent_id)}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 600 }}>{formatAgent(agent.agent_id)}</span>
+                <span className={`signal signal-${agent.signal}`} style={{ fontSize: 9, padding: '1px 5px' }}>
+                  {agent.signal} {agent.confidence}%
+                </span>
+              </div>
+              {expandedAgent === agent.agent_id && (
+                <div style={{ marginTop: 6, paddingTop: 6, borderTop: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.4 }}>{agent.summary}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Key Evidence */}
+      {result.key_evidence?.length > 0 && (
+        <div>
+          <div className="text-label" style={{ marginBottom: 6, fontSize: 9 }}>Key Evidence</div>
+          {result.key_evidence.slice(0, 5).map((e: string, i: number) => (
+            <div key={i} style={{ display: 'flex', gap: 5, padding: '3px 0', fontSize: 11, color: 'var(--text-secondary)' }}>
+              <span className="text-gold" style={{ flexShrink: 0 }}>✓</span> {e}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Risk Warnings */}
+      {result.risk_warnings?.length > 0 && (
+        <div style={{ background: 'rgba(255,149,0,0.05)', borderRadius: 4, padding: '8px 10px', border: '1px solid rgba(255,149,0,0.1)' }}>
+          <div className="text-label text-orange" style={{ marginBottom: 4, fontSize: 9 }}>Risk Warnings</div>
+          {result.risk_warnings.map((w: string, i: number) => (
+            <div key={i} style={{ fontSize: 11, color: 'var(--orange)', padding: '2px 0' }}>• {w}</div>
+          ))}
+        </div>
+      )}
+
+      {/* Suggested Action */}
+      {result.suggested_action?.direction && result.suggested_action.direction !== 'none' && (
+        <div style={{ background: 'rgba(201,168,76,0.05)', borderRadius: 4, padding: '8px 10px', border: '1px solid var(--gold-border)' }}>
+          <div className="text-label text-gold" style={{ marginBottom: 6, fontSize: 9 }}>Suggested Action</div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+            {[
+              { l: 'Entry', v: result.suggested_action.entry_zone },
+              { l: 'Stop Loss', v: result.suggested_action.stop_loss },
+              { l: 'TP1', v: result.suggested_action.take_profit_1 },
+              { l: 'TP2', v: result.suggested_action.take_profit_2 },
+            ].filter(i => i.v && i.v !== 'N/A').map(i => (
+              <div key={i.l} style={{ padding: '3px 6px', background: 'var(--bg-primary)', borderRadius: 3 }}>
+                <div style={{ fontSize: 9, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{i.l}</div>
+                <div className="text-number" style={{ fontSize: 12, fontWeight: 600 }}>{i.v}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Executive Summary */}
+      <div>
+        <div className="text-label" style={{ marginBottom: 4, fontSize: 9 }}>Executive Summary</div>
+        <p style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+          {result.executive_summary?.substring(0, 300)}{result.executive_summary?.length > 300 ? '...' : ''}
+        </p>
+      </div>
+
+      {/* Metadata */}
+      <div style={{ textAlign: 'center', padding: '4px 0', borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+        <span className="text-ghost" style={{ fontSize: 10 }}>
+          {result.successful_agents}/{result.total_agents} agents · {result.processing_time_ms}ms
+        </span>
+      </div>
+
+      <div style={{ textAlign: 'center' }}>
+        <span style={{ fontSize: 9, color: 'var(--text-ghost)' }}>AI-generated analysis · Not financial advice</span>
+      </div>
+    </div>
+  );
+}
+
+/* ─── AI Assistant Panel ──────────────────────────────────────── */
+
+function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
+  const [messages, setMessages] = useState<Array<{role: string, text: string}>>([
+    { role: 'assistant', text: `Welcome to the AI Assistant. I have access to the current analysis for ${symbol}. Ask me anything about the market intelligence.` }
+  ]);
+  const [input, setInput] = useState('');
+
+  function handleSend() {
+    if (!input.trim()) return;
+    const question = input.trim();
+    setInput('');
+    setMessages(prev => [...prev, { role: 'user', text: question }]);
+
+    // Generate contextual response based on analysis
+    let response = '';
+    if (!result) {
+      response = 'No analysis has been run yet. Click "Run Analysis" first, then ask me about the results.';
+    } else if (question.toLowerCase().includes('confidence')) {
+      response = `The current confidence is ${result.confidence}%. This is calculated from ${result.successful_agents} specialist agents. The consensus shows ${result.agent_consensus?.bullish || 0} bullish, ${result.agent_consensus?.bearish || 0} bearish, and ${result.agent_consensus?.neutral || 0} neutral signals.`;
+    } else if (question.toLowerCase().includes('risk')) {
+      const warnings = result.risk_warnings || [];
+      response = warnings.length > 0
+        ? `Key risks identified:\n${warnings.map((w: string) => `• ${w}`).join('\n')}`
+        : 'No significant risk warnings were identified in the current analysis.';
+    } else if (question.toLowerCase().includes('evidence') || question.toLowerCase().includes('why')) {
+      const evidence = result.key_evidence || [];
+      response = evidence.length > 0
+        ? `Key evidence supporting the analysis:\n${evidence.map((e: string) => `• ${e}`).join('\n')}`
+        : 'No specific evidence was highlighted in the analysis.';
+    } else if (question.toLowerCase().includes('recommendation') || question.toLowerCase().includes('should')) {
+      response = `The Executive Engine recommends: ${result.recommendation?.toUpperCase()} with ${result.confidence}% confidence. ${result.executive_summary?.substring(0, 200) || ''}`;
+    } else {
+      response = `Based on the current ${symbol} analysis:\n\n• Recommendation: ${result.recommendation?.toUpperCase()}\n• Confidence: ${result.confidence}%\n• ${result.executive_summary?.substring(0, 150) || 'No summary available'}...\n\nAsk me about confidence, risk, evidence, or the recommendation for more details.`;
+    }
+
+    setTimeout(() => {
+      setMessages(prev => [...prev, { role: 'assistant', text: response }]);
+    }, 500);
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      {/* Messages */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {messages.map((msg, i) => (
+          <div key={i} style={{
+            padding: '8px 10px',
+            borderRadius: 4,
+            fontSize: 12,
+            lineHeight: 1.5,
+            background: msg.role === 'user' ? 'rgba(201,168,76,0.08)' : 'var(--bg-primary)',
+            color: msg.role === 'user' ? 'var(--gold)' : 'var(--text-secondary)',
+            border: msg.role === 'user' ? '1px solid var(--gold-border)' : '1px solid var(--border)',
+            alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+            maxWidth: '85%',
+            whiteSpace: 'pre-line',
+          }}>
+            {msg.text}
+          </div>
+        ))}
+      </div>
+
+      {/* Input */}
+      <div style={{ padding: 8, borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
+        <input
+          type="text" value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          placeholder="Ask about the analysis..."
+          className="mavyx-input" style={{ flex: 1, fontSize: 12, padding: '6px 10px' }}
+        />
+        <button onClick={handleSend} className="mavyx-btn mavyx-btn-primary" style={{ padding: '6px 12px', fontSize: 11 }}>Send</button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Helpers ─────────────────────────────────────────────────── */
+
+function ConfidenceRing({ value }: { value: number }) {
+  const r = 32, c = 2 * Math.PI * r, offset = c - (value / 100) * c;
+  return (
+    <div style={{ position: 'relative', width: 76, height: 76, flexShrink: 0 }}>
+      <svg width="76" height="76" viewBox="0 0 76 76" style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx="38" cy="38" r={r} fill="none" stroke="var(--bg-primary)" strokeWidth="4" />
+        <circle cx="38" cy="38" r={r} fill="none" stroke="var(--gold)" strokeWidth="4" strokeLinecap="round"
           strokeDasharray={c} strokeDashoffset={offset}
           style={{ transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4,0,0.2,1)' }} />
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <span style={{ fontSize: 20, fontWeight: 700, color: 'var(--gold)', lineHeight: 1 }}>{value}</span>
-        <span style={{ fontSize: 8, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginTop: 2 }}>Confidence</span>
+        <span className="text-number" style={{ fontSize: 18, fontWeight: 700, color: 'var(--gold)', lineHeight: 1 }}>{value}</span>
+        <span style={{ fontSize: 7, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-tertiary)', marginTop: 1 }}>Confidence</span>
       </div>
     </div>
   );
@@ -295,12 +437,12 @@ function ConfidenceRing({ value }: { value: number }) {
 function ConsensusRow({ label, count, total, color }: { label: string; count: number; total: number; color: string }) {
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-      <span style={{ width: 48, fontSize: 11, color: 'var(--text-tertiary)' }}>{label}</span>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+      <span style={{ width: 44, fontSize: 10, color: 'var(--text-tertiary)' }}>{label}</span>
       <div style={{ flex: 1, height: 3, background: 'var(--bg-primary)', borderRadius: 2 }}>
         <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.8s ease' }} />
       </div>
-      <span className="text-number" style={{ width: 14, textAlign: 'right', fontSize: 11, fontWeight: 700, color }}>{count}</span>
+      <span className="text-number" style={{ width: 12, textAlign: 'right', fontSize: 10, fontWeight: 700, color }}>{count}</span>
     </div>
   );
 }

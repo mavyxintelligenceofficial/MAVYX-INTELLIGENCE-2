@@ -1,17 +1,16 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
 import type { IChartApi, ISeriesApi } from 'lightweight-charts';
 
 /**
- * Professional Candlestick Chart
- * Per MEIDS §5.9: "Institutional Chart"
- * - Muted green for bullish candles
- * - Muted red for bearish candles
- * - Thin borders
- * - Extremely subtle grid
- * - Price must remain the most visible element
+ * Live Candlestick Chart
+ * Per MEIDS §5.9: Professional institutional chart
+ * - Auto-refreshes every 30 seconds
+ * - Muted green/red candles
+ * - Subtle grid
+ * - Gold crosshair
  */
 
 interface Candle {
@@ -24,23 +23,25 @@ interface Candle {
 
 interface ChartProps {
   candles: Candle[];
-  overlays?: any[];
+  onRefresh?: () => void;
 }
 
-export default function CandlestickChart({ candles }: ChartProps) {
+export default function CandlestickChart({ candles, onRefresh }: ChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Initialize chart
   useEffect(() => {
     if (!containerRef.current) return;
 
-    // Create chart
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: '#08080C' },
         textColor: '#686878',
         fontSize: 11,
-        fontFamily: 'Inter, sans-serif',
+        fontFamily: 'Inter, -apple-system, sans-serif',
       },
       grid: {
         vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
@@ -48,12 +49,12 @@ export default function CandlestickChart({ candles }: ChartProps) {
       },
       crosshair: {
         mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(201, 168, 76, 0.3)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
-        horzLine: { color: 'rgba(201, 168, 76, 0.3)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
+        vertLine: { color: 'rgba(201, 168, 76, 0.4)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
+        horzLine: { color: 'rgba(201, 168, 76, 0.4)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
       },
       rightPriceScale: {
         borderColor: 'rgba(255, 255, 255, 0.06)',
-        scaleMargins: { top: 0.1, bottom: 0.1 },
+        scaleMargins: { top: 0.05, bottom: 0.05 },
       },
       timeScale: {
         borderColor: 'rgba(255, 255, 255, 0.06)',
@@ -66,7 +67,6 @@ export default function CandlestickChart({ candles }: ChartProps) {
 
     chartRef.current = chart;
 
-    // Add candlestick series
     const candleSeries = chart.addCandlestickSeries({
       upColor: '#34C759',
       downColor: '#FF3B30',
@@ -76,24 +76,9 @@ export default function CandlestickChart({ candles }: ChartProps) {
       wickDownColor: '#FF3B30',
     });
 
-    // Convert candles to chart format
-    if (candles && candles.length > 0) {
-      const chartData = candles.map(c => ({
-        time: (new Date(c.timestamp).getTime() / 1000) as any,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }));
+    seriesRef.current = candleSeries;
 
-      // Sort by time
-      chartData.sort((a, b) => (a.time as number) - (b.time as number));
-
-      candleSeries.setData(chartData);
-      chart.timeScale().fitContent();
-    }
-
-    // Handle resize
+    // Resize observer
     const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const { width, height } = entry.contentRect;
@@ -105,8 +90,49 @@ export default function CandlestickChart({ candles }: ChartProps) {
     return () => {
       resizeObserver.disconnect();
       chart.remove();
+      chartRef.current = null;
+      seriesRef.current = null;
     };
+  }, []);
+
+  // Update data when candles change
+  useEffect(() => {
+    if (!seriesRef.current || !candles || candles.length === 0) return;
+
+    const chartData = candles
+      .map(c => ({
+        time: (new Date(c.timestamp).getTime() / 1000) as any,
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }))
+      .sort((a, b) => (a.time as number) - (b.time as number));
+
+    // Remove duplicates
+    const seen = new Set();
+    const unique = chartData.filter(d => {
+      if (seen.has(d.time)) return false;
+      seen.add(d.time);
+      return true;
+    });
+
+    seriesRef.current.setData(unique);
+    chartRef.current?.timeScale().fitContent();
   }, [candles]);
+
+  // Auto-refresh every 30 seconds for live feel
+  useEffect(() => {
+    if (!onRefresh) return;
+
+    intervalRef.current = setInterval(() => {
+      onRefresh();
+    }, 30000);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [onRefresh]);
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
 }
