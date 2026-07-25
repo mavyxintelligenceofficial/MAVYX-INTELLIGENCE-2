@@ -2,7 +2,7 @@
   "name": "web",
   "version": "0.2.0",
   "private": true,
-  "description": "Mavyx Intelligence - Frontend shell (Next.js). Talks ONLY to api-gateway, never directly to individual backend services.",
+  "description": "Mavyx Intelligence - Frontend",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "chart.js": "^4.4.2",
+    "lightweight-charts": "^4.1.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-chartjs-2": "^5.2.0",

@@ -1,160 +1,101 @@
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
-import Link from 'next/link';
+import { useEffect, useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
-import { Button } from '@/components/Button';
-import { getQuotes } from '@/features/market/api';
-import { Quote } from '@/features/market/types';
-import { getProfile, updateProfile } from '@/features/profile/api';
 import { useAuthStore } from '@/features/auth/store';
-import { ApiError } from '@/services/api-client';
+import { getProfile, updateProfile } from '@/features/profile/api';
+import { getQuotes } from '@/features/market/api';
+import type { Quote } from '@/features/market/types';
+import AppLayout from '@/components/layout/AppLayout';
 
 export default function WatchlistPage() {
   const router = useRouter();
   const { token, isHydrated, hydrate } = useAuthStore();
-
   const [symbols, setSymbols] = useState<string[]>([]);
   const [quotes, setQuotes] = useState<Record<string, Quote | null>>({});
   const [newSymbol, setNewSymbol] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { if (isHydrated && !token) router.replace('/login'); }, [isHydrated, token, router]);
 
   useEffect(() => {
-    hydrate();
-  }, [hydrate]);
-
-  useEffect(() => {
-    if (!isHydrated) return;
-
-    if (!token) {
-      router.replace('/login');
-      return;
-    }
-
-    loadWatchlist(token);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isHydrated, token, router]);
-
-  async function loadWatchlist(currentToken: string) {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const profile = await getProfile(currentToken);
-      setSymbols(profile.watchlistSymbols);
-
-      if (profile.watchlistSymbols.length > 0) {
-        const results = await getQuotes(currentToken, profile.watchlistSymbols);
-        setQuotes(results);
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not load your watchlist.');
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
-  async function saveSymbols(updated: string[]) {
     if (!token) return;
+    getProfile(token).then(p => {
+      const syms = p.watchlistSymbols || [];
+      setSymbols(syms);
+      if (syms.length > 0) {
+        getQuotes(token, syms).then(setQuotes);
+      }
+      setIsLoading(false);
+    }).catch(() => setIsLoading(false));
+  }, [token]);
 
+  async function handleAdd(e: FormEvent) {
+    e.preventDefault();
+    if (!token || !newSymbol.trim()) return;
+    const sym = newSymbol.trim().toUpperCase();
+    if (symbols.includes(sym)) return;
+    const updated = [...symbols, sym];
     setSymbols(updated);
+    setNewSymbol('');
     try {
       await updateProfile(token, { watchlistSymbols: updated });
-      if (updated.length > 0) {
-        const results = await getQuotes(token, updated);
-        setQuotes(results);
-      } else {
-        setQuotes({});
-      }
-    } catch (err) {
-      setError(err instanceof ApiError ? err.message : 'Could not save your watchlist.');
-    }
+      const q = await getQuotes(token, [sym]);
+      setQuotes(prev => ({ ...prev, ...q }));
+    } catch {}
   }
 
-  function handleAdd(event: FormEvent) {
-    event.preventDefault();
-    const symbol = newSymbol.trim().toUpperCase();
-    if (!symbol || symbols.includes(symbol)) {
-      setNewSymbol('');
-      return;
-    }
-    setNewSymbol('');
-    saveSymbols([...symbols, symbol]);
+  async function handleRemove(sym: string) {
+    if (!token) return;
+    const updated = symbols.filter(s => s !== sym);
+    setSymbols(updated);
+    setQuotes(prev => { const n = { ...prev }; delete n[sym]; return n; });
+    try { await updateProfile(token, { watchlistSymbols: updated }); } catch {}
   }
 
-  function handleRemove(symbol: string) {
-    saveSymbols(symbols.filter((s) => s !== symbol));
-  }
-
-  if (!isHydrated || isLoading) {
-    return (
-      <main className="flex min-h-screen items-center justify-center p-6">
-        <p className="text-slate-600">Loading your watchlist...</p>
-      </main>
-    );
-  }
+  if (!isHydrated || !token) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}><div className="text-ghost">Loading...</div></div>;
 
   return (
-    <main className="flex min-h-screen items-center justify-center p-6">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold text-slate-900">Watchlist</h1>
-          <Link href="/profile" className="text-sm text-slate-500 underline">
-            Back to profile
-          </Link>
-        </div>
+    <AppLayout>
+      <div style={{ maxWidth: 600 }}>
+        <h1 style={{ marginBottom: 20 }}>Watchlist</h1>
 
-        {error && (
-          <p className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-        )}
-
-        <form onSubmit={handleAdd} className="flex gap-2">
-          <input
-            type="text"
-            value={newSymbol}
-            onChange={(e) => setNewSymbol(e.target.value.toUpperCase())}
-            placeholder="e.g. GBP/USD"
-            className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm"
-          />
-          <Button type="submit" className="w-auto px-4">
-            Add
-          </Button>
+        <form onSubmit={handleAdd} style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <input type="text" value={newSymbol} onChange={e => setNewSymbol(e.target.value)} placeholder="EUR/USD" className="mavyx-input" style={{ flex: 1 }} />
+          <button type="submit" className="mavyx-btn mavyx-btn-primary">Add</button>
         </form>
 
-        {symbols.length === 0 && (
-          <p className="text-sm text-slate-500">
-            No symbols yet - add one above (format: BASE/QUOTE, e.g. EUR/USD).
-          </p>
-        )}
-
-        <div className="space-y-3">
-          {symbols.map((symbol) => {
-            const quote = quotes[symbol];
-            return (
-              <div
-                key={symbol}
-                className="flex items-center justify-between rounded-md border border-slate-200 bg-white p-3"
-              >
-                <div>
-                  <p className="text-sm font-medium text-slate-900">{symbol}</p>
-                  {quote ? (
-                    <p className="text-lg font-semibold text-slate-900">{quote.price}</p>
-                  ) : (
-                    <p className="text-sm text-slate-400">Unavailable</p>
-                  )}
-                </div>
-                <button
-                  onClick={() => handleRemove(symbol)}
-                  className="text-sm text-red-600 underline"
-                >
-                  Remove
-                </button>
-              </div>
-            );
-          })}
+        <div className="mavyx-card" style={{ padding: 0 }}>
+          {symbols.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 32 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>No symbols in watchlist</p>
+              <p style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>Add a currency pair above to start tracking.</p>
+            </div>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Pair</th>
+                  <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Price</th>
+                  <th style={{ textAlign: 'right', padding: '10px 12px', fontSize: 11, fontWeight: 600, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {symbols.map(sym => (
+                  <tr key={sym} style={{ borderBottom: '1px solid var(--border)' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }} onClick={() => router.push(`/workspace?symbol=${encodeURIComponent(sym)}`)}>{sym}</td>
+                    <td className="text-number" style={{ textAlign: 'right', padding: '10px 12px', fontSize: 14, fontWeight: 600 }}>{quotes[sym]?.price ?? '—'}</td>
+                    <td style={{ textAlign: 'right', padding: '10px 12px' }}>
+                      <button onClick={() => handleRemove(sym)} className="mavyx-btn mavyx-btn-ghost" style={{ fontSize: 11, padding: '4px 8px', color: 'var(--red)' }}>Remove</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
       </div>
-    </main>
+    </AppLayout>
   );
 }
