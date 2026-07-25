@@ -330,16 +330,21 @@ function ExecutiveBriefPanel({ result, isLoading, expandedAgent, setExpandedAgen
 /* ─── AI Assistant Panel ──────────────────────────────────────── */
 
 function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
-  const [messages, setMessages] = useState<Array<{role: string, text: string}>>([
-    { role: 'assistant', text: `Welcome to the AI Assistant. I have access to the current analysis for ${symbol}. Ask me anything about the market intelligence.` }
-  ]);
+  const ai = useAIStore();
   const [input, setInput] = useState('');
+
+  // Initialize welcome message if no messages exist
+  useEffect(() => {
+    if (ai.chatMessages.length === 0) {
+      ai.addChatMessage({ role: 'assistant', text: `Welcome to the AI Assistant. I have access to the current analysis for ${symbol}. Ask me anything about the market intelligence.` });
+    }
+  }, []);
 
   function handleSend() {
     if (!input.trim()) return;
     const question = input.trim();
     setInput('');
-    setMessages(prev => [...prev, { role: 'user', text: question }]);
+    ai.addChatMessage({ role: 'user', text: question });
 
     // Generate contextual response based on analysis
     let response = '';
@@ -359,12 +364,16 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
         : 'No specific evidence was highlighted in the analysis.';
     } else if (question.toLowerCase().includes('recommendation') || question.toLowerCase().includes('should')) {
       response = `The Executive Engine recommends: ${result.recommendation?.toUpperCase()} with ${result.confidence}% confidence. ${result.executive_summary?.substring(0, 200) || ''}`;
+    } else if (question.toLowerCase().includes('agent') || question.toLowerCase().includes('who')) {
+      const breakdown = result.agent_breakdown || [];
+      const summary = breakdown.map((a: any) => `${formatAgent(a.agent_id)}: ${a.signal} (${a.confidence}%)`).join('\n');
+      response = `Agent breakdown:\n${summary}`;
     } else {
-      response = `Based on the current ${symbol} analysis:\n\n• Recommendation: ${result.recommendation?.toUpperCase()}\n• Confidence: ${result.confidence}%\n• ${result.executive_summary?.substring(0, 150) || 'No summary available'}...\n\nAsk me about confidence, risk, evidence, or the recommendation for more details.`;
+      response = `Based on the current ${symbol} analysis:\n\n• Recommendation: ${result.recommendation?.toUpperCase()}\n• Confidence: ${result.confidence}%\n• ${result.executive_summary?.substring(0, 150) || 'No summary available'}...\n\nAsk me about confidence, risk, evidence, agents, or the recommendation for more details.`;
     }
 
     setTimeout(() => {
-      setMessages(prev => [...prev, { role: 'assistant', text: response }]);
+      ai.addChatMessage({ role: 'assistant', text: response });
     }, 500);
   }
 
@@ -372,7 +381,7 @@ function AIAssistantPanel({ symbol, result }: { symbol: string; result: any }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {messages.map((msg, i) => (
+        {ai.chatMessages.map((msg, i) => (
           <div key={i} style={{
             padding: '8px 10px',
             borderRadius: 4,
