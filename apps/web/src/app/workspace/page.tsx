@@ -10,7 +10,7 @@ import type { Quote } from '@/features/market/types';
 import AppLayout from '@/components/layout/AppLayout';
 import dynamic from 'next/dynamic';
 
-const CandlestickChart = dynamic(() => import('@/components/CandlestickChart'), { ssr: false });
+const TradingViewChart = dynamic(() => import('@/components/CandlestickChart'), { ssr: false });
 
 const TIMEFRAMES = [
   { value: '1h', label: '1H' },
@@ -112,16 +112,7 @@ export default function WorkspacePage() {
         {/* ─── Chart Area (Left) ────────────────────────────────── */}
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
           <div className="mavyx-card" style={{ flex: 1, padding: 0, overflow: 'hidden', borderRadius: 6 }}>
-            {candles.length > 0 ? (
-              <CandlestickChart candles={candles} onRefresh={handleChartRefresh} />
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div className="mavyx-skeleton" style={{ width: 200, height: 16, margin: '0 auto 8px' }} />
-                  <p className="text-ghost" style={{ fontSize: 12 }}>Loading chart...</p>
-                </div>
-              </div>
-            )}
+            <TradingViewChart symbol={ai.symbol} />
           </div>
 
           {/* Bottom Info Bar */}

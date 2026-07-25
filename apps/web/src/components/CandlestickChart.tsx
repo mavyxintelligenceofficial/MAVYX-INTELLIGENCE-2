@@ -1,138 +1,93 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
-import { createChart, ColorType, CrosshairMode } from 'lightweight-charts';
-import type { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { useEffect, useRef } from 'react';
 
 /**
- * Live Candlestick Chart
- * Per MEIDS §5.9: Professional institutional chart
- * - Auto-refreshes every 30 seconds
- * - Muted green/red candles
- * - Subtle grid
- * - Gold crosshair
+ * TradingView Advanced Chart Widget
+ * Real-time, live, professional candlestick chart.
+ * Uses TradingView's free embeddable widget — same chart you see on tradingview.com
+ *
+ * Features:
+ * - Real-time live price updates (no polling/refresh needed)
+ * - Professional candlesticks with volume
+ * - All timeframes (1m, 5m, 15m, 1h, 4h, 1D, 1W, 1M)
+ * - Drawing tools, indicators, technical analysis
+ * - Full TradingView charting experience
  */
 
-interface Candle {
-  timestamp: string;
-  open: number;
-  high: number;
-  low: number;
-  close: number;
+interface TradingViewChartProps {
+  symbol?: string;
 }
 
-interface ChartProps {
-  candles: Candle[];
-  onRefresh?: () => void;
+// Map our Forex pairs to TradingView symbol format
+function toTradingViewSymbol(symbol: string): string {
+  // TradingView uses FX:EURUSD format for Forex
+  const cleaned = symbol.replace('/', '').toUpperCase();
+  return `FX_IDC:${cleaned}`;
 }
 
-export default function CandlestickChart({ candles, onRefresh }: ChartProps) {
+export default function TradingViewChart({ symbol = 'EUR/USD' }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const chartRef = useRef<IChartApi | null>(null);
-  const seriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const scriptRef = useRef<HTMLScriptElement | null>(null);
 
-  // Initialize chart
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const chart = createChart(containerRef.current, {
-      layout: {
-        background: { type: ColorType.Solid, color: '#08080C' },
-        textColor: '#686878',
-        fontSize: 11,
-        fontFamily: 'Inter, -apple-system, sans-serif',
-      },
-      grid: {
-        vertLines: { color: 'rgba(255, 255, 255, 0.03)' },
-        horzLines: { color: 'rgba(255, 255, 255, 0.03)' },
-      },
-      crosshair: {
-        mode: CrosshairMode.Normal,
-        vertLine: { color: 'rgba(201, 168, 76, 0.4)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
-        horzLine: { color: 'rgba(201, 168, 76, 0.4)', width: 1, style: 2, labelBackgroundColor: '#14141E' },
-      },
-      rightPriceScale: {
-        borderColor: 'rgba(255, 255, 255, 0.06)',
-        scaleMargins: { top: 0.05, bottom: 0.05 },
-      },
-      timeScale: {
-        borderColor: 'rgba(255, 255, 255, 0.06)',
-        timeVisible: true,
-        secondsVisible: false,
-      },
-      handleScroll: true,
-      handleScale: true,
+    // Clear previous widget
+    containerRef.current.innerHTML = '';
+
+    const tvSymbol = toTradingViewSymbol(symbol);
+
+    // Create TradingView widget container
+    const widgetContainer = document.createElement('div');
+    widgetContainer.className = 'tradingview-widget-container';
+    widgetContainer.style.height = '100%';
+    widgetContainer.style.width = '100%';
+
+    widgetContainer.innerHTML = `
+      <div class="tradingview-widget-container__widget" style="height: calc(100% - 32px); width: 100%;"></div>
+      <div class="tradingview-widget-copyright">
+        <a href="https://www.tradingview.com/" rel="noopener nofollow" target="_blank">
+          <span class="blue-text">Track all markets on TradingView</span>
+        </a>
+      </div>
+    `;
+
+    containerRef.current.appendChild(widgetContainer);
+
+    // Load TradingView script
+    const script = document.createElement('script');
+    script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+    script.type = 'text/javascript';
+    script.async = true;
+    script.innerHTML = JSON.stringify({
+      autosize: true,
+      symbol: tvSymbol,
+      interval: '240',
+      timezone: 'Etc/UTC',
+      theme: 'dark',
+      style: '1',
+      locale: 'en',
+      backgroundColor: '#08080C',
+      gridColor: 'rgba(255, 255, 255, 0.03)',
+      hide_top_toolbar: false,
+      hide_legend: false,
+      save_image: false,
+      hide_volume: false,
+      support_host: 'https://www.tradingview.com',
     });
 
-    chartRef.current = chart;
+    widgetContainer.appendChild(script);
+    scriptRef.current = script;
 
-    const candleSeries = chart.addCandlestickSeries({
-      upColor: '#34C759',
-      downColor: '#FF3B30',
-      borderUpColor: '#34C759',
-      borderDownColor: '#FF3B30',
-      wickUpColor: '#34C759',
-      wickDownColor: '#FF3B30',
-    });
-
-    seriesRef.current = candleSeries;
-
-    // Resize observer
-    const resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        chart.applyOptions({ width, height });
+    return () => {
+      if (containerRef.current) {
+        containerRef.current.innerHTML = '';
       }
-    });
-    resizeObserver.observe(containerRef.current);
-
-    return () => {
-      resizeObserver.disconnect();
-      chart.remove();
-      chartRef.current = null;
-      seriesRef.current = null;
     };
-  }, []);
+  }, [symbol]);
 
-  // Update data when candles change
-  useEffect(() => {
-    if (!seriesRef.current || !candles || candles.length === 0) return;
-
-    const chartData = candles
-      .map(c => ({
-        time: (new Date(c.timestamp).getTime() / 1000) as any,
-        open: c.open,
-        high: c.high,
-        low: c.low,
-        close: c.close,
-      }))
-      .sort((a, b) => (a.time as number) - (b.time as number));
-
-    // Remove duplicates
-    const seen = new Set();
-    const unique = chartData.filter(d => {
-      if (seen.has(d.time)) return false;
-      seen.add(d.time);
-      return true;
-    });
-
-    seriesRef.current.setData(unique);
-    chartRef.current?.timeScale().fitContent();
-  }, [candles]);
-
-  // Auto-refresh every 30 seconds for live feel
-  useEffect(() => {
-    if (!onRefresh) return;
-
-    intervalRef.current = setInterval(() => {
-      onRefresh();
-    }, 30000);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [onRefresh]);
-
-  return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />;
+  return (
+    <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
+  );
 }
