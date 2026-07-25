@@ -44,6 +44,11 @@ export default function MarketsPage() {
     router.push('/workspace');
   }
 
+  function handleRowClick(pair: string) {
+    ai.setSymbol(pair);
+    router.push('/workspace');
+  }
+
   if (!isHydrated || !token) return <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: 'var(--bg-primary)' }}><div className="text-ghost">Loading...</div></div>;
 
   return (

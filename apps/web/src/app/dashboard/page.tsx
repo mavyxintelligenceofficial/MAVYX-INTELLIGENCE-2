@@ -56,6 +56,7 @@ export default function DashboardPage() {
                 <div className="text-number" style={{ fontSize: 16, fontWeight: 700 }}>
                   {loading ? '...' : q?.price?.toString() ?? '—'}
                 </div>
+                <div style={{ fontSize: 10, color: 'var(--text-ghost)', marginTop: 2 }}>Click to analyze</div>
               </div>
             );
           })}
