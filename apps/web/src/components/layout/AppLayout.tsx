@@ -6,11 +6,10 @@ import { usePathname } from 'next/navigation';
 
 /**
  * Mavyx Intelligence — Institutional Layout
- * Matches reference design exactly:
- * - Left sidebar (narrow, icons only)
- * - Top bar (logo, pair, session, time)
- * - Main content area
- * - Bottom status bar
+ * Per MEIDS Chapter 5 §5.5: Five permanent zones
+ *
+ * The right AI Panel only shows on the Workspace page.
+ * Other pages use the full center area.
  */
 
 const NAV_ITEMS = [
@@ -20,130 +19,122 @@ const NAV_ITEMS = [
   { href: '/watchlist', icon: '◻', label: 'Watchlist' },
   { href: '/journal', icon: '◫', label: 'Journal' },
   { href: '/analytics', icon: '◬', label: 'Analytics' },
-  { href: '/notifications', icon: '🔔', label: 'Alerts' },
 ];
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+const NAV_BOTTOM = [
+  { href: '/settings', icon: '⚙', label: 'Settings' },
+  { href: '/health', icon: '⊕', label: 'System' },
+];
+
+interface AppLayoutProps {
+  children: React.ReactNode;
+  /** If true, layout uses 3-column grid (sidebar + workspace + panel). Otherwise 2-column. */
+  hasPanel?: boolean;
+}
+
+export default function AppLayout({ children, hasPanel = false }: AppLayoutProps) {
   const pathname = usePathname();
 
   return (
     <div style={{
       display: 'grid',
-      gridTemplateRows: '44px 1fr 24px',
-      gridTemplateColumns: '56px 1fr',
-      gridTemplateAreas: '"topbar topbar" "sidebar main" "bottombar bottombar"',
+      gridTemplateRows: '48px 1fr 28px',
+      gridTemplateColumns: hasPanel ? '200px 1fr' : '200px 1fr',
+      gridTemplateAreas: hasPanel
+        ? '"topbar topbar" "sidebar main" "bottombar bottombar"'
+        : '"topbar topbar" "sidebar main" "bottombar bottombar"',
       height: '100vh',
       width: '100vw',
       overflow: 'hidden',
-      background: '#050508',
-      fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      {/* ─── Top Bar ──────────────────────────────────────────── */}
-      <header style={{
-        gridArea: 'topbar',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 16px',
-        background: '#0A0A10',
-        borderBottom: '1px solid rgba(255,255,255,0.04)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={20} height={20} />
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#C9A84C', letterSpacing: '0.1em' }}>MAVYX</span>
-          <div style={{ width: 1, height: 16, background: 'rgba(255,255,255,0.06)', margin: '0 4px' }} />
-          <span style={{ fontSize: 11, color: '#585868' }}>EUR/USD</span>
-          <span style={{ fontSize: 11, color: '#585868' }}>4H</span>
-          <span style={{ fontSize: 11, color: '#34C759' }}>● Active</span>
+      {/* ─── Top Intelligence Bar ─────────────────────────────── */}
+      <header className="mavyx-topbar" style={{ gridArea: 'topbar' }}>
+        <div className="mavyx-topbar-section">
+          <Image src="/brand/Mavyx GOLD VERSION.png" alt="Mavyx" width={22} height={22} />
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase' }}>Mavyx</span>
+          <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
+          <TopBarItem label="SESSION" value={getCurrentSession()} />
+          <TopBarItem label="STATUS" value="ACTIVE" valueColor="var(--green)" />
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <span style={{ fontSize: 10, color: '#484858' }}>{new Date().toLocaleTimeString('en-US', { hour12: false })}</span>
-          <span style={{ fontSize: 10, color: '#34C759' }}>● AI Ready</span>
+        <div className="mavyx-topbar-section">
+          <TopBarItem label="TIME" value={new Date().toLocaleTimeString('en-US', { hour12: false })} />
+          <div style={{ width: 1, height: 18, background: 'var(--border)', margin: '0 4px' }} />
+          <div className="mavyx-topbar-item">
+            <span style={{ color: 'var(--green)', fontSize: 7 }}>●</span>
+            <span style={{ fontSize: 11 }}>AI Ready</span>
+          </div>
         </div>
       </header>
 
-      {/* ─── Sidebar ──────────────────────────────────────────── */}
-      <nav style={{
-        gridArea: 'sidebar',
-        background: '#08080E',
-        borderRight: '1px solid rgba(255,255,255,0.04)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '8px 0',
-        gap: 2,
-      }}>
+      {/* ─── Left Sidebar ─────────────────────────────────────── */}
+      <nav style={{ gridArea: 'sidebar', background: 'var(--bg-secondary)', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', padding: '6px 0', overflow: 'hidden' }}>
+        <div style={{ padding: '2px 12px 8px' }}>
+          <div className="text-label" style={{ fontSize: 8, marginBottom: 0 }}>Navigation</div>
+        </div>
+
         {NAV_ITEMS.map((item) => (
           <Link key={item.href} href={item.href}
-            title={item.label}
-            style={{
-              width: 40, height: 40,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              borderRadius: 8,
-              fontSize: 16,
-              color: pathname === item.href ? '#C9A84C' : '#585868',
-              background: pathname === item.href ? 'rgba(201,168,76,0.08)' : 'transparent',
-              textDecoration: 'none',
-              transition: 'all 0.15s ease',
-            }}>
-            {item.icon}
+            className={`mavyx-nav-item ${pathname === item.href ? 'active' : ''}`}
+            style={{ padding: '8px 12px', fontSize: 12 }}>
+            <span className="icon" style={{ width: 16, fontSize: 13 }}>{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
+        ))}
+
+        <div className="mavyx-nav-divider" style={{ margin: '6px 12px' }} />
+
+        {NAV_BOTTOM.map((item) => (
+          <Link key={item.href} href={item.href}
+            className={`mavyx-nav-item ${pathname === item.href ? 'active' : ''}`}
+            style={{ padding: '8px 12px', fontSize: 12 }}>
+            <span className="icon" style={{ width: 16, fontSize: 13 }}>{item.icon}</span>
+            <span>{item.label}</span>
           </Link>
         ))}
 
         <div style={{ flex: 1 }} />
-
-        <Link href="/settings" title="Settings"
-          style={{
-            width: 40, height: 40,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: 8, fontSize: 16,
-            color: pathname === '/settings' ? '#C9A84C' : '#585868',
-            background: pathname === '/settings' ? 'rgba(201,168,76,0.08)' : 'transparent',
-            textDecoration: 'none',
-          }}>⚙</Link>
-        <Link href="/profile" title="Profile"
-          style={{
-            width: 40, height: 40,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            borderRadius: 8, fontSize: 16,
-            color: pathname === '/profile' ? '#C9A84C' : '#585868',
-            background: pathname === '/profile' ? 'rgba(201,168,76,0.08)' : 'transparent',
-            textDecoration: 'none',
-          }}>◎</Link>
+        <div className="mavyx-nav-divider" style={{ margin: '6px 12px' }} />
+        <Link href="/profile" className={`mavyx-nav-item ${pathname === '/profile' ? 'active' : ''}`}
+          style={{ padding: '8px 12px', fontSize: 12 }}>
+          <span className="icon" style={{ width: 16, fontSize: 13 }}>◎</span>
+          <span>Profile</span>
+        </Link>
       </nav>
 
       {/* ─── Main Content ─────────────────────────────────────── */}
-      <main style={{
-        gridArea: 'main',
-        background: '#050508',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-      }}>
+      <main style={{ gridArea: 'main', background: 'var(--bg-primary)', overflow: 'hidden', padding: 10, display: 'flex', flexDirection: 'column' }}>
         {children}
       </main>
 
-      {/* ─── Bottom Bar ───────────────────────────────────────── */}
-      <footer style={{
-        gridArea: 'bottombar',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 16px',
-        background: '#0A0A10',
-        borderTop: '1px solid rgba(255,255,255,0.04)',
-        fontSize: 10,
-        color: '#383848',
-      }}>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <span>Market: <span style={{ color: '#34C759' }}>Open</span></span>
-          <span>AI: <span style={{ color: '#34C759' }}>14 Agents</span></span>
+      {/* ─── Bottom Intelligence Dock ─────────────────────────── */}
+      <footer className="mavyx-bottombar" style={{ gridArea: 'bottombar' }}>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <span style={{ fontSize: 10 }}>Market: <span style={{ color: 'var(--green)' }}>Open</span></span>
+          <span style={{ fontSize: 10 }}>AI: <span style={{ color: 'var(--green)' }}>14 Agents</span></span>
         </div>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <span>v1.0.0</span>
-          <span>Mavyx Intelligence</span>
+        <div style={{ display: 'flex', gap: 14 }}>
+          <span style={{ fontSize: 10 }}>v1.0.0</span>
+          <span style={{ fontSize: 10 }}>Mavyx Intelligence</span>
         </div>
       </footer>
     </div>
   );
+}
+
+function TopBarItem({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
+  return (
+    <div className="mavyx-topbar-item">
+      <span className="text-ghost" style={{ fontSize: 9 }}>{label}</span>
+      <span className="value" style={{ color: valueColor, fontSize: 11 }}>{value}</span>
+    </div>
+  );
+}
+
+function getCurrentSession(): string {
+  const hour = new Date().getUTCHours();
+  if (hour >= 21 || hour < 6) return 'SYDNEY';
+  if (hour >= 6 && hour < 8) return 'TOKYO';
+  if (hour >= 8 && hour < 16) return 'LONDON';
+  if (hour >= 12 && hour < 21) return 'NEW YORK';
+  return 'LONDON';
 }
