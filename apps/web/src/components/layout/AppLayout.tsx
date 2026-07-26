@@ -110,7 +110,7 @@ export default function AppLayout({ children, hasPanel = false }: AppLayoutProps
       <footer className="mavyx-bottombar" style={{ gridArea: 'bottombar' }}>
         <div style={{ display: 'flex', gap: 14 }}>
           <span style={{ fontSize: 10 }}>Market: <span style={{ color: 'var(--green)' }}>Open</span></span>
-          <span style={{ fontSize: 10 }}>AI: <span style={{ color: 'var(--green)' }}>11 Agents</span></span>
+          <span style={{ fontSize: 10 }}>AI: <span style={{ color: 'var(--green)' }}>14 Agents</span></span>
         </div>
         <div style={{ display: 'flex', gap: 14 }}>
           <span style={{ fontSize: 10 }}>v1.0.0</span>

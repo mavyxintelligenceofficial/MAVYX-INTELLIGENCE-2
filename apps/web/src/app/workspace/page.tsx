@@ -200,7 +200,7 @@ function ExecutiveBriefPanel({ result, isLoading, expandedAgent, setExpandedAgen
               }} />
             ))}
           </div>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Deploying 11 specialist agents...</p>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>Deploying 14 specialist agents...</p>
           <p style={{ fontSize: 10, color: 'var(--text-tertiary)', marginTop: 4 }}>This may take 30-60 seconds</p>
         </div>
       </div>
