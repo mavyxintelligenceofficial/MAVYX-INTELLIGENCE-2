@@ -134,7 +134,6 @@ export default function SignupPage() {
         </div>
 
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 480 }}>
-          <Image src="/brand/Mavyx-LOGO.png" alt="Mavyx" width={160} height={64} priority style={{ marginBottom: 48 }} />
           <h1 style={{ fontSize: 40, lineHeight: 1.18, fontWeight: 600, letterSpacing: '-0.01em', marginBottom: 16 }}>
             Executive Intelligence<br />for Financial Markets
           </h1>
