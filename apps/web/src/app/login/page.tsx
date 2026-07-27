@@ -33,7 +33,7 @@ export default function LoginPage() {
     setIsLoading(true); setError(null);
     try {
       const data = await loginWithCredentials({ email, password });
-      setSession(data.user, data.access_token);
+      setSession(data.user, data.accessToken);
       router.push('/welcome');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Invalid credentials');

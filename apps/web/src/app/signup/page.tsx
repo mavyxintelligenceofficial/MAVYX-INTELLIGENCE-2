@@ -52,7 +52,7 @@ export default function SignupPage() {
     setIsLoading(true); setError(null);
     try {
       const data = await signup({ email, password, fullName });
-      setSession(data.user, data.access_token);
+      setSession(data.user, data.accessToken);
       router.push('/welcome');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Signup failed. Please try again.');
