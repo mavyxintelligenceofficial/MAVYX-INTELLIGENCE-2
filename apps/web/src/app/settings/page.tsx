@@ -44,8 +44,19 @@ export default function SettingsPage() {
     localStorage.setItem('mavyx_notifications', String(newVal));
   }
 
-  function handleSaveApiKey() {
+  async function handleSaveApiKey() {
     localStorage.setItem('mavyx_twelvedata_key', apiKey);
+    // Also send to market service so it can use the key
+    try {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+      await fetch(`${API_URL}/market/api-key`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey }),
+      });
+    } catch (e) {
+      console.log('Could not update market service API key:', e);
+    }
     setApiKeySaved(true);
     setTimeout(() => setApiKeySaved(false), 2000);
   }

@@ -1,4 +1,4 @@
-import { Controller, Get, HttpException, HttpStatus, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpException, HttpStatus, Post, Query, Req } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
@@ -21,6 +21,25 @@ export class MarketProxyController {
    * Public ticker endpoint — no authentication required.
    * Used for the landing page market ticker.
    */
+  @Post('api-key')
+  async updateApiKey(@Body() body: any) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.marketServiceUrl}/market/api-key`, body),
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError;
+      if (axiosError.response) {
+        throw new HttpException(
+          (axiosError.response.data as any)?.message || 'Market service error',
+          axiosError.response.status,
+        );
+      }
+      throw new HttpException('Market service is unreachable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
+  }
+
   @Get('ticker')
   async getTicker() {
     try {

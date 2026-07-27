@@ -2,26 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-/**
- * TradingView Advanced Chart Widget
- * Real-time, live, professional candlestick chart.
- * Uses TradingView's free embeddable widget — same chart you see on tradingview.com
- *
- * Features:
- * - Real-time live price updates (no polling/refresh needed)
- * - Professional candlesticks with volume
- * - All timeframes (1m, 5m, 15m, 1h, 4h, 1D, 1W, 1M)
- * - Drawing tools, indicators, technical analysis
- * - Full TradingView charting experience
- */
-
 interface TradingViewChartProps {
   symbol?: string;
 }
 
-// Map our Forex pairs to TradingView symbol format
 function toTradingViewSymbol(symbol: string): string {
-  // TradingView uses FX:EURUSD format for Forex
   const cleaned = symbol.replace('/', '').toUpperCase();
   return `FX_IDC:${cleaned}`;
 }
@@ -82,28 +67,39 @@ export default function TradingViewChart({ symbol = 'EUR/USD' }: TradingViewChar
     };
   }, [symbol]);
 
-  function toggleFullscreen() {
-    setIsFullscreen(!isFullscreen);
-  }
+  // Fullscreen styles
+  const containerStyle: React.CSSProperties = isFullscreen ? {
+    position: 'fixed',
+    inset: 0,
+    zIndex: 9999,
+    background: '#000',
+    width: '100vw',
+    height: '100vh',
+  } : {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+    minHeight: 400,
+  };
 
   return (
-    <div style={{ position: 'relative', width: '100%', height: isFullscreen ? '100vh' : '100%', minHeight: 400 }}>
+    <div style={containerStyle}>
       {/* Fullscreen toggle button */}
       <button
-        onClick={toggleFullscreen}
+        onClick={() => setIsFullscreen(!isFullscreen)}
         style={{
           position: 'absolute', top: 8, right: 8, zIndex: 10,
-          width: 32, height: 32, borderRadius: 6,
-          background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.1)',
-          color: '#888', fontSize: 14, cursor: 'pointer',
+          width: 36, height: 36, borderRadius: 6,
+          background: 'rgba(0,0,0,0.8)', border: '1px solid rgba(255,255,255,0.15)',
+          color: '#aaa', fontSize: 16, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'all 0.2s',
         }}
         onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#D4AF37'; e.currentTarget.style.color = '#D4AF37'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#888'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.15)'; e.currentTarget.style.color = '#aaa'; }}
         title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
       >
-        {isFullscreen ? '⊡' : '⛶'}
+        {isFullscreen ? '✕' : '⛶'}
       </button>
       <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
     </div>

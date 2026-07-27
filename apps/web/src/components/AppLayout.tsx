@@ -170,8 +170,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="topbar-chip"><span className="dot amber" /> Market Open</div>
         </div>
 
-        {/* Search Bar */}
-        <div className="search-bar" onClick={() => { setSearchOpen(true); setTimeout(() => searchInputRef.current?.focus(), 100); }} style={{ cursor: 'pointer' }}>
+        {/* Search Bar — clickable */}
+        <div 
+          className="search-bar" 
+          onClick={() => { setSearchOpen(true); }} 
+          style={{ cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') setSearchOpen(true); }}
+        >
           <span>🔍</span>
           <span>Search markets, journal, docs…</span>
           <kbd style={{ marginLeft: 'auto', fontSize: 10, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', color: 'var(--text-mute)' }}>⌘K</kbd>
@@ -182,21 +189,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="pulse" />
             AI Ready
           </div>
-          {/* Notification Bell */}
-          <button style={{
-            width: 32, height: 32, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'transparent', border: '1px solid transparent', color: 'var(--text-soft)', cursor: 'pointer',
-          }} onClick={() => {
-            if (notificationsEnabled) {
-              // Show notification toast
-              const toast = document.createElement('div');
-              toast.className = 'toast';
-              toast.innerHTML = '<span class="dot"></span> No new notifications';
-              document.body.appendChild(toast);
-              setTimeout(() => toast.remove(), 3000);
-            }
-          }}>
+          {/* Notification Bell — functional */}
+          <button 
+            className="icon-btn"
+            style={{ position: 'relative' }}
+            onClick={() => {
+              if (notificationsEnabled) {
+                router.push('/journal'); // Navigate to journal where notifications are shown
+              }
+            }}
+          >
             🔔
+            {notificationsEnabled && (
+              <span style={{
+                position: 'absolute', top: 2, right: 2,
+                width: 8, height: 8, borderRadius: '50%',
+                background: 'var(--red)', 
+              }} />
+            )}
           </button>
           <div className="avatar-btn" onClick={() => router.push('/settings')} style={{ cursor: 'pointer' }}>
             {initials}
