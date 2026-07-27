@@ -9,8 +9,8 @@ import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
 
 /**
- * Login Page — Exact match to reference design
- * Dark background, centered glass card, Mavyx logo, minimal clean design
+ * Login Page — Matches reference design exactly
+ * Dark background, centered card, Mavyx logo, minimal clean design
  */
 
 export default function LoginPage() {
@@ -24,7 +24,7 @@ export default function LoginPage() {
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
-    if (isHydrated && token) router.replace('/welcome');
+    if (isHydrated && token) router.replace('/workspace');
     setTimeout(() => setMounted(true), 50);
   }, [isHydrated, token, router]);
 
@@ -34,7 +34,7 @@ export default function LoginPage() {
     try {
       const data = await loginWithCredentials({ email, password });
       setSession(data.user, data.accessToken);
-      router.push('/welcome');
+      router.push('/workspace');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Invalid credentials');
     } finally { setIsLoading(false); }
