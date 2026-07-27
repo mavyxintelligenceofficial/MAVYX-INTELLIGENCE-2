@@ -8,11 +8,6 @@ import { loginWithCredentials } from '@/features/auth/api';
 import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
 
-/**
- * Login Page — Per UI/UX Specification
- * Split screen: Left (55%) brand experience, Right (45%) auth card
- */
-
 export default function LoginPage() {
   const router = useRouter();
   const { setSession, token, isHydrated, hydrate } = useAuthStore();
@@ -23,7 +18,6 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mounted, setMounted] = useState(false);
-  const [marketStatus, setMarketStatus] = useState('OPEN');
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
@@ -45,68 +39,46 @@ export default function LoginPage() {
 
   return (
     <main style={{
-      minHeight: '100vh',
+      height: '100vh',
+      width: '100vw',
       display: 'flex',
       background: '#0A0A0A',
       fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, sans-serif',
       overflow: 'hidden',
     }}>
-      {/* ─── Left Panel (55%) — Brand Experience ──────────────── */}
+      {/* ─── Left Panel (50%) — Brand Experience ──────────────── */}
       <div style={{
-        width: '55%',
+        width: '50%',
+        height: '100%',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '60px',
+        padding: '40px',
         position: 'relative',
         opacity: mounted ? 1 : 0,
         transition: 'opacity 0.8s ease',
       }}>
-        {/* Subtle world map background */}
+        {/* Subtle background dots */}
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1000 600'%3E%3Cpath d='M150,300 Q200,250 250,280 Q300,310 350,290 Q400,270 450,300 Q500,330 550,310 Q600,290 650,320 Q700,350 750,330 Q800,310 850,340' stroke='rgba(255,255,255,0.03)' fill='none' stroke-width='1'/%3E%3Cpath d='M100,350 Q150,300 200,330 Q250,360 300,340 Q350,320 400,350 Q450,380 500,360 Q550,340 600,370 Q650,400 700,380 Q750,360 800,390 Q850,420 900,400' stroke='rgba(255,255,255,0.02)' fill='none' stroke-width='1'/%3E%3Ccircle cx='250' cy='280' r='3' fill='rgba(212,175,55,0.15)'/%3E%3Ccircle cx='450' cy='300' r='3' fill='rgba(212,175,55,0.15)'/%3E%3Ccircle cx='650' cy='320' r='3' fill='rgba(212,175,55,0.15)'/%3E%3Ccircle cx='350' cy='350' r='2' fill='rgba(212,175,55,0.1)'/%3E%3Ccircle cx='550' cy='280' r='2' fill='rgba(212,175,55,0.1)'/%3E%3Ccircle cx='750' cy='340' r='2' fill='rgba(212,175,55,0.1)'/%3E%3C/svg%3E")`,
-          backgroundSize: 'cover',
-          opacity: 0.4,
+          backgroundImage: 'radial-gradient(circle, rgba(212,175,55,0.05) 1px, transparent 1px)',
+          backgroundSize: '40px 40px',
         }} />
 
-        {/* Glowing financial hubs */}
-        {[
-          { left: '25%', top: '45%', label: 'London' },
-          { left: '15%', top: '55%', label: 'New York' },
-          { left: '75%', top: '40%', label: 'Tokyo' },
-          { left: '80%', top: '55%', label: 'Singapore' },
-          { left: '50%', top: '35%', label: 'Frankfurt' },
-          { left: '85%', top: '70%', label: 'Sydney' },
-        ].map((hub) => (
-          <div key={hub.label} style={{
-            position: 'absolute',
-            left: hub.left,
-            top: hub.top,
-            width: 6, height: 6,
-            borderRadius: '50%',
-            background: 'rgba(212,175,55,0.2)',
-            boxShadow: '0 0 20px rgba(212,175,55,0.15)',
-            animation: `fadeIn 3s ease infinite alternate`,
-          }} />
-        ))}
-
         {/* Brand Content */}
-        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 420 }}>
-          {/* Logo */}
+        <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: 380 }}>
           <Image
-            src="/brand/Mavyx GOLD VERSION.png"
+            src="/brand/Mavyx-METALLIC.png"
             alt="Mavyx Intelligence"
-            width={160}
-            height={64}
+            width={180}
+            height={72}
             priority
-            style={{ marginBottom: 24, opacity: 0.9 }}
+            style={{ marginBottom: 24 }}
           />
 
-          {/* Tagline */}
           <h1 style={{
-            fontSize: 28, fontWeight: 700, color: '#FFFFFF',
+            fontSize: 26, fontWeight: 700, color: '#FFFFFF',
             letterSpacing: '-0.02em', lineHeight: 1.3, marginBottom: 8,
           }}>
             Executive Intelligence
@@ -114,92 +86,80 @@ export default function LoginPage() {
             <span style={{ color: '#D4AF37' }}>for Financial Markets</span>
           </h1>
 
-          <p style={{
-            fontSize: 15, color: '#888888', lineHeight: 1.6, marginBottom: 32,
-          }}>
+          <p style={{ fontSize: 14, color: '#888888', lineHeight: 1.6, marginBottom: 28 }}>
             Multi-Agent AI · Institutional Research
             <br />
             Executive Decision Intelligence
           </p>
 
           {/* Feature Badges */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 40 }}>
-            {[
-              'Multi-Agent Analysis',
-              'Explainable AI Decisions',
-              'Institutional Grade Research',
-            ].map((feature) => (
-              <div key={feature} style={{
-                display: 'flex', alignItems: 'center', gap: 10,
-                fontSize: 13, color: '#B0B0B0',
-              }}>
-                <span style={{ color: '#D4AF37', fontSize: 14 }}>✓</span>
-                {feature}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {['Multi-Agent Analysis', 'Explainable AI Decisions', 'Institutional Grade Research'].map((f) => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#B0B0B0' }}>
+                <span style={{ color: '#D4AF37' }}>✓</span> {f}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Bottom — Security indicators */}
+        {/* Security indicators */}
         <div style={{
-          position: 'absolute', bottom: 24, left: 60,
-          display: 'flex', flexDirection: 'column', gap: 3,
-          fontSize: 10, color: '#444444',
+          position: 'absolute', bottom: 20, left: 40,
+          fontSize: 10, color: '#444444', lineHeight: 1.6,
         }}>
-          <span>AES-256 Encryption</span>
-          <span>Enterprise Authentication</span>
-          <span>Secure Cloud Infrastructure</span>
-          <span>Version 1.0</span>
+          <div>AES-256 Encryption</div>
+          <div>Enterprise Authentication</div>
+          <div>Version 1.0</div>
         </div>
 
-        {/* Animated market ticker */}
+        {/* Market ticker */}
         <div style={{
-          position: 'absolute', bottom: 24, right: 60,
+          position: 'absolute', bottom: 20, right: 40,
           fontSize: 10, color: '#555555',
-          animation: 'fadeIn 2s ease infinite alternate',
         }}>
           EUR/USD 1.0875 · GBP/USD 1.2945 · USD/JPY 163.21
         </div>
       </div>
 
-      {/* ─── Right Panel (45%) — Authentication Card ─────────── */}
+      {/* ─── Right Panel (50%) — Auth Card ─────────────────────── */}
       <div style={{
-        width: '45%',
+        width: '50%',
+        height: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px',
+        padding: '24px',
         position: 'relative',
       }}>
-        {/* Market Status — Top Right */}
+        {/* Market Status */}
         <div style={{
-          position: 'absolute', top: 24, right: 24,
+          position: 'absolute', top: 20, right: 24,
           display: 'flex', alignItems: 'center', gap: 6,
           fontSize: 11, color: '#888888',
         }}>
           <span>Forex Market</span>
           <span style={{ color: '#22C55E', fontSize: 8 }}>●</span>
-          <span style={{ color: '#22C55E' }}>{marketStatus}</span>
+          <span style={{ color: '#22C55E' }}>OPEN</span>
         </div>
 
         {/* Auth Card */}
         <div style={{
           width: '100%',
-          maxWidth: 460,
+          maxWidth: 400,
           background: '#171717',
-          borderRadius: 24,
-          padding: '48px 44px',
-          boxShadow: '0 4px 60px rgba(0,0,0,0.4)',
+          borderRadius: 20,
+          padding: '32px 28px',
+          boxShadow: '0 4px 40px rgba(0,0,0,0.3)',
           opacity: mounted ? 1 : 0,
-          transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-          transition: 'all 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
+          transform: mounted ? 'translateY(0)' : 'translateY(16px)',
+          transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
         }}>
           {/* Header */}
-          <div style={{ marginBottom: 32 }}>
-            <h2 style={{ fontSize: 24, fontWeight: 700, color: '#FFFFFF', marginBottom: 6 }}>
+          <div style={{ marginBottom: 24 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 700, color: '#FFFFFF', marginBottom: 4 }}>
               Welcome Back
             </h2>
-            <p style={{ fontSize: 14, color: '#888888' }}>
+            <p style={{ fontSize: 13, color: '#888888' }}>
               Continue to your Executive Workspace.
             </p>
           </div>
@@ -207,10 +167,10 @@ export default function LoginPage() {
           {/* Error */}
           {error && (
             <div style={{
-              marginBottom: 20, padding: '10px 14px',
+              marginBottom: 16, padding: '8px 12px',
               background: 'rgba(255,45,85,0.08)',
               border: '1px solid rgba(255,45,85,0.2)',
-              borderRadius: 14, fontSize: 13, color: '#FF5252',
+              borderRadius: 10, fontSize: 12, color: '#FF5252',
             }}>
               {error}
             </div>
@@ -219,27 +179,21 @@ export default function LoginPage() {
           {/* Form */}
           <form onSubmit={handleSubmit}>
             {/* Email */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{
-                display: 'block', fontSize: 12, fontWeight: 500,
-                color: '#888888', marginBottom: 8,
-              }}>
-                Email Address
-              </label>
+            <div style={{ marginBottom: 14 }}>
               <input
                 type="email" value={email} onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email" required
+                placeholder="Email Address" required
                 style={{
-                  width: '100%', height: 56, padding: '0 18px',
+                  width: '100%', height: 48, padding: '0 14px',
                   background: '#0A0A0A',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: 14, color: '#FFFFFF', fontSize: 15,
+                  borderRadius: 12, color: '#FFFFFF', fontSize: 14,
                   fontFamily: 'Inter, sans-serif', outline: 'none',
-                  transition: 'all 0.3s ease',
+                  transition: 'all 0.2s',
                 }}
                 onFocus={(e) => {
                   e.target.style.borderColor = '#D4AF37';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(212,175,55,0.1)';
+                  e.target.style.boxShadow = '0 0 0 2px rgba(212,175,55,0.1)';
                 }}
                 onBlur={(e) => {
                   e.target.style.borderColor = 'rgba(255,255,255,0.08)';
@@ -249,45 +203,35 @@ export default function LoginPage() {
             </div>
 
             {/* Password */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{
-                display: 'block', fontSize: 12, fontWeight: 500,
-                color: '#888888', marginBottom: 8,
-              }}>
-                Password
-              </label>
+            <div style={{ marginBottom: 12 }}>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={password} onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password" required
+                  placeholder="Password" required
                   style={{
-                    width: '100%', height: 56, padding: '0 48px 0 18px',
+                    width: '100%', height: 48, padding: '0 40px 0 14px',
                     background: '#0A0A0A',
                     border: '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 14, color: '#FFFFFF', fontSize: 15,
+                    borderRadius: 12, color: '#FFFFFF', fontSize: 14,
                     fontFamily: 'Inter, sans-serif', outline: 'none',
-                    transition: 'all 0.3s ease',
+                    transition: 'all 0.2s',
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = '#D4AF37';
-                    e.target.style.boxShadow = '0 0 0 3px rgba(212,175,55,0.1)';
+                    e.target.style.boxShadow = '0 0 0 2px rgba(212,175,55,0.1)';
                   }}
                   onBlur={(e) => {
                     e.target.style.borderColor = 'rgba(255,255,255,0.08)';
                     e.target.style.boxShadow = 'none';
                   }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
+                <button type="button" onClick={() => setShowPassword(!showPassword)}
                   style={{
-                    position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', color: '#666666', cursor: 'pointer',
-                    fontSize: 12, padding: 4,
-                  }}
-                >
-                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                    position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                    background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 14,
+                  }}>
+                  {showPassword ? '🙈' : '👁️'}
                 </button>
               </div>
             </div>
@@ -295,73 +239,65 @@ export default function LoginPage() {
             {/* Remember / Forgot */}
             <div style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              marginBottom: 28,
+              marginBottom: 20,
             }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="checkbox" checked={rememberMe}
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                <input type="checkbox" checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  style={{ accentColor: '#D4AF37' }}
-                />
-                <span style={{ fontSize: 13, color: '#888888' }}>Remember this device</span>
+                  style={{ accentColor: '#D4AF37' }} />
+                <span style={{ fontSize: 12, color: '#888888' }}>Remember me</span>
               </label>
-              <Link href="/auth/forgot-password" style={{ fontSize: 13, color: '#D4AF37', textDecoration: 'none' }}>
-                Forgot Password
+              <Link href="/auth/forgot-password" style={{ fontSize: 12, color: '#D4AF37', textDecoration: 'none' }}>
+                Forgot Password?
               </Link>
             </div>
 
-            {/* Submit Button */}
+            {/* Submit */}
             <button type="submit" disabled={isLoading} style={{
-              width: '100%', height: 56,
+              width: '100%', height: 48,
               background: '#D4AF37',
-              border: 'none', borderRadius: 14,
-              color: '#0A0A0A', fontSize: 16, fontWeight: 700,
+              border: 'none', borderRadius: 12,
+              color: '#0A0A0A', fontSize: 14, fontWeight: 700,
               fontFamily: 'Inter, sans-serif',
               cursor: isLoading ? 'not-allowed' : 'pointer',
               opacity: isLoading ? 0.6 : 1,
-              transition: 'all 0.2s ease',
-              marginBottom: 24,
+              transition: 'all 0.2s',
+              marginBottom: 20,
             }}>
               {isLoading ? 'Signing in...' : 'Continue →'}
             </button>
           </form>
 
           {/* Divider */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
-            <span style={{ fontSize: 12, color: '#555555' }}>OR</span>
+            <span style={{ fontSize: 11, color: '#555' }}>OR</span>
             <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.06)' }} />
           </div>
 
-          {/* OAuth Buttons */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 28 }}>
-            {[
-              { name: 'Google', icon: '🔴', color: '#4285F4' },
-              { name: 'Microsoft', icon: '🟦', color: '#00A4EF' },
-              { name: 'Apple', icon: '🍎', color: '#FFFFFF' },
-            ].map((provider) => (
-              <button key={provider.name} style={{
-                width: '100%', height: 48,
+          {/* OAuth */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20 }}>
+            {['Google', 'Microsoft', 'Apple'].map((p) => (
+              <button key={p} style={{
+                width: '100%', height: 44,
                 background: 'transparent',
                 border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 14,
-                color: '#B0B0B8', fontSize: 14, fontWeight: 500,
+                borderRadius: 12,
+                color: '#B0B0B8', fontSize: 13, fontWeight: 500,
                 fontFamily: 'Inter, sans-serif',
                 cursor: 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                transition: 'all 0.2s ease',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
               }}>
-                <span style={{ fontSize: 16 }}>{provider.icon}</span>
-                Continue with {provider.name}
+                Continue with {p}
               </button>
             ))}
           </div>
 
-          {/* Sign Up Link */}
-          <p style={{ textAlign: 'center', fontSize: 14, color: '#888888' }}>
+          {/* Sign Up */}
+          <p style={{ textAlign: 'center', fontSize: 13, color: '#888' }}>
             Don't have an account?{' '}
             <Link href="/signup" style={{ color: '#D4AF37', textDecoration: 'none', fontWeight: 600 }}>
-              Create Executive Workspace
+              Create Workspace
             </Link>
           </p>
         </div>
