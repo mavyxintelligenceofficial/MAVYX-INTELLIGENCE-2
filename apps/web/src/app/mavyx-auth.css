@@ -1,0 +1,80 @@
+/* Mavyx Intelligence — Premium Design System */
+/* Per UI/UX Specification */
+
+:root {
+  /* Surfaces */
+  --mvx-bg: #0a0a0a;
+  --mvx-surface: #111111;
+  --mvx-card: #171717;
+  --mvx-border: rgba(255, 255, 255, 0.08);
+  --mvx-border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Text */
+  --mvx-text-primary: #ffffff;
+  --mvx-text-secondary: #9a9a9a;
+  --mvx-text-tertiary: #6b6b6b;
+
+  /* Accents */
+  --mvx-gold: #d4af37;
+  --mvx-gold-hover: #ddbc4f;
+  --mvx-gold-dim: rgba(212, 175, 55, 0.14);
+  --mvx-silver: #e5e5e5;
+
+  /* Status */
+  --mvx-status-up: #2f9e5b;
+  --mvx-status-down: #c94f4f;
+
+  /* Feedback */
+  --mvx-error: #c94f4f;
+  --mvx-error-bg: rgba(201, 79, 79, 0.08);
+  --mvx-success: #2f9e5b;
+
+  /* Radius */
+  --mvx-radius-card: 24px;
+  --mvx-radius-input: 14px;
+  --mvx-radius-button: 14px;
+
+  /* Typography */
+  --mvx-font: 'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
+
+  /* Motion */
+  --mvx-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --mvx-duration-fast: 200ms;
+  --mvx-duration-base: 300ms;
+  --mvx-duration-slow: 600ms;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: var(--mvx-bg);
+  color: var(--mvx-text-primary);
+  font-family: var(--mvx-font);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Animations */
+@keyframes mvx-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes mvx-card-in {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes mvx-hub-pulse {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.4; }
+}
+
+@keyframes mvx-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes mvx-spin {
+  to { transform: rotate(360deg); }
+}
