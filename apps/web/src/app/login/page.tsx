@@ -4,7 +4,7 @@ import { useState, FormEvent, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { login } from '@/features/auth/api';
+import { loginWithCredentials } from '@/features/auth/api';
 import { useAuthStore } from '@/features/auth/store';
 import { ApiError } from '@/services/api-client';
 
@@ -32,7 +32,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true); setError(null);
     try {
-      const data = await login({ email, password });
+      const data = await loginWithCredentials({ email, password });
       setSession(data.user, data.access_token);
       router.push('/welcome');
     } catch (err) {
