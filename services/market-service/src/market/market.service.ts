@@ -2,8 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { CacheService } from '../common/cache.service';
 import { CandlesResult, MarketDataProvider, MARKET_DATA_PROVIDER, Quote } from './providers/market-data-provider.interface';
 
-const QUOTE_CACHE_TTL_SECONDS = 30;
-const CANDLES_CACHE_TTL_SECONDS = 300;
+const QUOTE_CACHE_TTL_SECONDS = 120;  // 2 minutes (was 30s - too aggressive for free tier)
+const CANDLES_CACHE_TTL_SECONDS = 600; // 10 minutes (was 5 min)
 
 @Injectable()
 export class MarketService {

@@ -27,7 +27,7 @@ export default function MarketsPage() {
   useEffect(() => {
     if (!token) return;
     getQuotes(token, PAIRS).then(q => { setPrices(q); setLoading(false); }).catch(() => setLoading(false));
-    const interval = setInterval(() => { getQuotes(token, PAIRS).then(setPrices).catch(() => {}); }, 15000);
+    const interval = setInterval(() => { getQuotes(token, PAIRS).then(setPrices).catch(() => {}); }, 120000); // 2 min
     return () => clearInterval(interval);
   }, [token]);
 

@@ -32,7 +32,7 @@ export default function WatchlistPage() {
   }, [token, symbols]);
 
   useEffect(() => { fetchPrices(); }, [fetchPrices]);
-  useEffect(() => { const i = setInterval(fetchPrices, 10000); return () => clearInterval(i); }, [fetchPrices]);
+  useEffect(() => { const i = setInterval(fetchPrices, 120000); return () => clearInterval(i); }, [fetchPrices]);
 
   function handleAnalyze(sym: string) { ai.setSymbol(sym); router.push('/workspace'); }
 

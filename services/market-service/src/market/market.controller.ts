@@ -20,16 +20,17 @@ export class MarketController {
     const symbols = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD'];
     const results: Record<string, { price: number; timestamp: string } | null> = {};
 
-    await Promise.allSettled(
-      symbols.map(async (symbol) => {
-        try {
-          const quote = await this.marketService.getQuote(symbol);
-          results[symbol] = { price: quote.price, timestamp: quote.timestamp };
-        } catch {
-          results[symbol] = null;
-        }
-      }),
-    );
+    // Sequential requests with delay to avoid Twelve Data rate limit (8/min free tier)
+    for (const symbol of symbols) {
+      try {
+        const quote = await this.marketService.getQuote(symbol); // Uses Redis cache
+        results[symbol] = { price: quote.price, timestamp: quote.timestamp };
+      } catch {
+        results[symbol] = null;
+      }
+      // Delay between requests to avoid burst rate limiting
+      await new Promise(r => setTimeout(r, 300));
+    }
 
     return results;
   }
