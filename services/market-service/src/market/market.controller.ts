@@ -3,15 +3,38 @@ import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { MarketService } from './market.service';
 
 /**
- * Symbols are passed as a query param (?symbol=EUR/USD), not a URL path
- * segment - a literal "/" in a path segment would be misread as an extra
- * route level.
+ * Market Controller
+ * Public endpoint: /market/ticker (no auth required)
+ * Protected endpoints: /market/quote, /market/candles (auth required)
  */
-@UseGuards(JwtAuthGuard)
 @Controller('market')
 export class MarketController {
   constructor(private readonly marketService: MarketService) {}
 
+  /**
+   * Public ticker endpoint — returns prices for common pairs.
+   * No authentication required. Used for the landing page ticker.
+   */
+  @Get('ticker')
+  async getTicker() {
+    const symbols = ['EUR/USD', 'GBP/USD', 'USD/JPY', 'USD/CHF', 'AUD/USD', 'USD/CAD'];
+    const results: Record<string, { price: number; timestamp: string } | null> = {};
+
+    await Promise.allSettled(
+      symbols.map(async (symbol) => {
+        try {
+          const quote = await this.marketService.getQuote(symbol);
+          results[symbol] = { price: quote.price, timestamp: quote.timestamp };
+        } catch {
+          results[symbol] = null;
+        }
+      }),
+    );
+
+    return results;
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('quote')
   async getQuote(@Query('symbol') symbol?: string) {
     if (!symbol) {
@@ -20,6 +43,7 @@ export class MarketController {
     return this.marketService.getQuote(symbol);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('candles')
   async getCandles(@Query('symbol') symbol?: string, @Query('interval') interval = '1h') {
     if (!symbol) {

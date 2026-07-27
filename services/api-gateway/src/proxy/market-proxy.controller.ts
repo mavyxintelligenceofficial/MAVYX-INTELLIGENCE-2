@@ -5,9 +5,9 @@ import { AxiosError } from 'axios';
 import { Request } from 'express';
 
 /**
- * Same forwarding pattern as ProfileProxyController: passes the client's
- * Authorization header through, since market-service needs to verify
- * the caller is logged in (same as every other protected route).
+ * Market Proxy Controller
+ * Public: /market/ticker (no auth)
+ * Protected: /market/quote, /market/candles (auth required)
  */
 @Controller('market')
 export class MarketProxyController {
@@ -15,6 +15,29 @@ export class MarketProxyController {
 
   constructor(private readonly httpService: HttpService) {
     this.marketServiceUrl = process.env.MARKET_SERVICE_URL || 'http://localhost:4003';
+  }
+
+  /**
+   * Public ticker endpoint — no authentication required.
+   * Used for the landing page market ticker.
+   */
+  @Get('ticker')
+  async getTicker() {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.marketServiceUrl}/market/ticker`),
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError;
+      if (axiosError.response) {
+        throw new HttpException(
+          (axiosError.response.data as any)?.message || 'Market service error',
+          axiosError.response.status,
+        );
+      }
+      throw new HttpException('Market service is unreachable', HttpStatus.SERVICE_UNAVAILABLE);
+    }
   }
 
   @Get('quote')

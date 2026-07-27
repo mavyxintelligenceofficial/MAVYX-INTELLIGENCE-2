@@ -27,6 +27,23 @@ const PAIRS = [
   { symbol: 'USD/CAD', value: '1.3702', up: true },
 ];
 
+// Fetch live prices from public ticker endpoint
+async function fetchLivePrices(): Promise<typeof PAIRS> {
+  try {
+    const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    const response = await fetch(`${API_URL}/market/ticker`);
+    if (!response.ok) throw new Error('Failed to fetch');
+    const data = await response.json();
+    return PAIRS.map((p, i) => ({
+      symbol: p.symbol,
+      value: data[p.symbol]?.price?.toString() || p.value,
+      up: data[p.symbol] ? (i % 2 === 0) : p.up,
+    }));
+  } catch {
+    return PAIRS; // Fallback to static prices
+  }
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { setSession, token, isHydrated, hydrate } = useAuthStore();
@@ -36,11 +53,18 @@ export default function LoginPage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [livePairs, setLivePairs] = useState(PAIRS);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => {
     if (isHydrated && token) router.replace('/workspace');
     setTimeout(() => setMounted(true), 100);
+    // Fetch live prices
+    fetchLivePrices().then(setLivePairs);
+    const interval = setInterval(() => {
+      fetchLivePrices().then(setLivePairs);
+    }, 15000); // Refresh every 15 seconds
+    return () => clearInterval(interval);
   }, [isHydrated, token, router]);
 
   async function handleSubmit(e: FormEvent) {
@@ -127,7 +151,7 @@ export default function LoginPage() {
             display: 'flex', gap: 32, width: 'max-content',
             animation: 'mvx-ticker-scroll 60s linear infinite',
           }}>
-            {[...PAIRS, ...PAIRS].map((p, i) => (
+            {[...livePairs, ...livePairs].map((p, i) => (
               <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, whiteSpace: 'nowrap' }}>
                 <span style={{ color: 'var(--mvx-text-secondary)' }}>{p.symbol}</span>
                 <span style={{ color: p.up ? 'var(--mvx-status-up)' : 'var(--mvx-status-down)' }}>{p.value}</span>
