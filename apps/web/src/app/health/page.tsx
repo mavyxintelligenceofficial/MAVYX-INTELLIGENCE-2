@@ -1,13 +1,15 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/features/auth/store';
 import { apiRequest } from '@/services/api-client';
+import AppLayout from '@/components/AppLayout';
 
 interface ServiceHealth {
   status: string;
   latency_ms?: number;
   error?: string;
-  details?: { service?: string; version?: string };
 }
 
 interface SystemHealth {
@@ -16,148 +18,80 @@ interface SystemHealth {
   timestamp: number;
 }
 
-/**
- * System Health Dashboard
- * Per Volume V Chapter 7 §7.13: Monitoring Architecture
- *
- * Shows real-time health of all Mavyx Intelligence services.
- * Accessible at /health (no auth required for monitoring).
- */
 export default function HealthPage() {
+  const router = useRouter();
+  const { token, isHydrated, hydrate } = useAuthStore();
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { hydrate(); }, [hydrate]);
+  useEffect(() => { if (isHydrated && !token) router.replace('/login'); }, [isHydrated, token, router]);
 
   useEffect(() => {
+    if (!token) return;
     checkHealth();
-    const interval = setInterval(checkHealth, 30000); // Refresh every 30s
+    const interval = setInterval(checkHealth, 30000);
     return () => clearInterval(interval);
-  }, []);
+  }, [token]);
 
   async function checkHealth() {
     try {
       const data = await apiRequest<SystemHealth>('/ai/health/system');
       setHealth(data);
-      setError(null);
-    } catch (err) {
-      setError('Unable to fetch system health');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch {
+      setHealth(null);
+    } finally { setIsLoading(false); }
   }
 
+  if (!isHydrated || !token) return null;
+
   return (
-    <main className="min-h-screen bg-slate-50 p-6">
-      <div className="mx-auto max-w-2xl space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold text-slate-900">System Health</h1>
-            <p className="text-sm text-slate-500">Mavyx Intelligence — Service Monitor</p>
-          </div>
-          <button
-            onClick={checkHealth}
-            className="rounded-md bg-slate-900 px-3 py-1.5 text-sm text-white hover:bg-slate-700"
-          >
-            Refresh
-          </button>
+    <AppLayout>
+      <div style={{ maxWidth: 600, margin: '0 auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+          <h1 style={{ fontSize: 20, fontWeight: 700 }}>System Health</h1>
+          <button onClick={checkHealth} className="analyze-btn" style={{ padding: '6px 14px', fontSize: 11 }}>Refresh</button>
         </div>
 
-        {isLoading && (
-          <p className="text-slate-600">Checking services...</p>
-        )}
-
-        {error && (
-          <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-700">
-            {error}
+        {isLoading ? (
+          <div className="tc-card" style={{ textAlign: 'center', padding: 32 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Checking services...</p>
           </div>
-        )}
-
-        {health && (
+        ) : health ? (
           <>
-            {/* Overall Status */}
-            <div className={`rounded-lg border p-4 ${
-              health.status === 'healthy'
-                ? 'border-green-200 bg-green-50'
-                : 'border-amber-200 bg-amber-50'
-            }`}>
-              <div className="flex items-center gap-2">
-                <span className={`text-2xl ${
-                  health.status === 'healthy' ? 'text-green-500' : 'text-amber-500'
-                }`}>
-                  {health.status === 'healthy' ? '●' : '◐'}
-                </span>
+            <div className="tc-card" style={{ marginBottom: 12, padding: 16, borderColor: health.status === 'healthy' ? 'rgba(63,166,107,0.3)' : 'rgba(201,135,63,0.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span className={`dot ${health.status === 'healthy' ? '' : 'amber'}`} />
                 <div>
-                  <p className="font-medium text-slate-900">
-                    System {health.status === 'healthy' ? 'Healthy' : 'Degraded'}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    Last checked: {new Date(health.timestamp * 1000).toLocaleTimeString()}
-                  </p>
+                  <p style={{ fontWeight: 700, fontSize: 14 }}>System {health.status === 'healthy' ? 'Healthy' : 'Degraded'}</p>
+                  <p style={{ fontSize: 10, color: 'var(--text-mute)' }}>Last checked: {new Date(health.timestamp * 1000).toLocaleTimeString()}</p>
                 </div>
               </div>
             </div>
 
-            {/* Individual Services */}
-            <div className="space-y-3">
-              {Object.entries(health.services).map(([name, service]) => (
-                <div
-                  key={name}
-                  className="rounded-lg border border-slate-200 bg-white p-4"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`text-lg ${
-                        service.status === 'healthy' ? 'text-green-500' :
-                        service.status === 'unreachable' ? 'text-red-500' :
-                        'text-amber-500'
-                      }`}>
-                        {service.status === 'healthy' ? '●' :
-                         service.status === 'unreachable' ? '○' : '◐'}
-                      </span>
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          {formatServiceName(name)}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          {service.details?.service || name}
-                        </p>
-                      </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {Object.entries(health.services).map(([name, svc]) => (
+                <div key={name} className="tc-card" style={{ padding: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span className={`dot ${svc.status === 'healthy' ? '' : svc.status === 'unreachable' ? 'red' : 'amber'}`} />
+                      <span style={{ fontSize: 13, fontWeight: 600 }}>{name.split('-').map(w => w[0].toUpperCase() + w.slice(1)).join(' ')}</span>
                     </div>
-                    <div className="text-right">
-                      <p className={`text-sm font-medium ${
-                        service.status === 'healthy' ? 'text-green-600' :
-                        service.status === 'unreachable' ? 'text-red-600' :
-                        'text-amber-600'
-                      }`}>
-                        {service.status}
-                      </p>
-                      {service.latency_ms !== undefined && (
-                        <p className="text-xs text-slate-400">
-                          {service.latency_ms}ms
-                        </p>
-                      )}
-                      {service.error && (
-                        <p className="text-xs text-red-500">{service.error}</p>
-                      )}
+                    <div style={{ textAlign: 'right' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: svc.status === 'healthy' ? 'var(--green)' : 'var(--red)' }}>{svc.status}</span>
+                      {svc.latency_ms !== undefined && <span style={{ fontSize: 10, color: 'var(--text-mute)', marginLeft: 8 }}>{svc.latency_ms}ms</span>}
                     </div>
                   </div>
                 </div>
               ))}
             </div>
-
-            <p className="text-xs text-slate-400 text-center">
-              Auto-refreshes every 30 seconds
-            </p>
           </>
+        ) : (
+          <div className="tc-card" style={{ textAlign: 'center', padding: 32 }}>
+            <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Unable to fetch system health</p>
+          </div>
         )}
       </div>
-    </main>
+    </AppLayout>
   );
-}
-
-function formatServiceName(name: string): string {
-  return name
-    .split('-')
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
 }
