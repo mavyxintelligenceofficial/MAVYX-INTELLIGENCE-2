@@ -2,6 +2,7 @@
 
 import { useState, FormEvent } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import '@/app/mavyx-auth.css';
 
 export default function ForgotPasswordPage() {
@@ -23,7 +24,12 @@ export default function ForgotPasswordPage() {
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'var(--mvx-bg)', fontFamily: 'var(--mvx-font)', padding: 24,
+      position: 'relative',
     }}>
+      {/* Logo — small, top-left corner */}
+      <div style={{ position: 'absolute', top: 20, left: 24 }}>
+        <Image src="/brand/Mavyx-LOGO.png" alt="Mavyx" width={80} height={32} priority />
+      </div>
       <div style={{
         width: '100%', maxWidth: 460, background: 'var(--mvx-card)',
         border: '1px solid var(--mvx-border)', borderRadius: 24,

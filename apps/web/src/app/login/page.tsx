@@ -91,10 +91,13 @@ export default function LoginPage() {
           ))}
         </div>
 
+        {/* Logo — small, top-left corner */}
+        <div style={{ position: 'absolute', top: 20, left: 24, zIndex: 2 }}>
+          <Image src="/brand/Mavyx-LOGO.png" alt="Mavyx" width={80} height={32} priority />
+        </div>
+
         {/* Brand Content */}
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 480 }}>
-          <Image src="/brand/Mavyx-LOGO.png" alt="Mavyx" width={160} height={64} priority
-            style={{ marginBottom: 48, animation: 'mvx-fade-in 600ms ease 100ms both' }} />
 
           <h1 style={{
             fontSize: 40, lineHeight: 1.18, fontWeight: 600, letterSpacing: '-0.01em',
