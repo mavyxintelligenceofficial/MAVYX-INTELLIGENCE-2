@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 /**
  * TradingView Advanced Chart Widget
@@ -28,17 +28,13 @@ function toTradingViewSymbol(symbol: string): string {
 
 export default function TradingViewChart({ symbol = 'EUR/USD' }: TradingViewChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const scriptRef = useRef<HTMLScriptElement | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     if (!containerRef.current) return;
-
-    // Clear previous widget
     containerRef.current.innerHTML = '';
 
     const tvSymbol = toTradingViewSymbol(symbol);
-
-    // Create TradingView widget container
     const widgetContainer = document.createElement('div');
     widgetContainer.className = 'tradingview-widget-container';
     widgetContainer.style.height = '100%';
@@ -55,7 +51,6 @@ export default function TradingViewChart({ symbol = 'EUR/USD' }: TradingViewChar
 
     containerRef.current.appendChild(widgetContainer);
 
-    // Load TradingView script
     const script = document.createElement('script');
     script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
     script.type = 'text/javascript';
@@ -68,26 +63,49 @@ export default function TradingViewChart({ symbol = 'EUR/USD' }: TradingViewChar
       theme: 'dark',
       style: '1',
       locale: 'en',
-      backgroundColor: '#08080C',
+      backgroundColor: '#000000',
       gridColor: 'rgba(255, 255, 255, 0.03)',
       hide_top_toolbar: false,
       hide_legend: false,
       save_image: false,
       hide_volume: false,
       support_host: 'https://www.tradingview.com',
+      allow_symbol_change: true,
+      details: true,
+      calendar: false,
     });
 
     widgetContainer.appendChild(script);
-    scriptRef.current = script;
 
     return () => {
-      if (containerRef.current) {
-        containerRef.current.innerHTML = '';
-      }
+      if (containerRef.current) containerRef.current.innerHTML = '';
     };
   }, [symbol]);
 
+  function toggleFullscreen() {
+    setIsFullscreen(!isFullscreen);
+  }
+
   return (
-    <div ref={containerRef} style={{ width: '100%', height: '100%', minHeight: 400 }} />
+    <div style={{ position: 'relative', width: '100%', height: isFullscreen ? '100vh' : '100%', minHeight: 400 }}>
+      {/* Fullscreen toggle button */}
+      <button
+        onClick={toggleFullscreen}
+        style={{
+          position: 'absolute', top: 8, right: 8, zIndex: 10,
+          width: 32, height: 32, borderRadius: 6,
+          background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,255,255,0.1)',
+          color: '#888', fontSize: 14, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.2s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#D4AF37'; e.currentTarget.style.color = '#D4AF37'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)'; e.currentTarget.style.color = '#888'; }}
+        title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen'}
+      >
+        {isFullscreen ? '⊡' : '⛶'}
+      </button>
+      <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
+    </div>
   );
 }
