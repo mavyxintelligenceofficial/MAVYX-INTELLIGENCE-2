@@ -139,6 +139,7 @@ export default function LoginPage() {
         flex: '0 0 45%', display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center', padding: 24,
         position: 'relative', background: 'var(--mvx-surface)',
+        overflowY: 'auto',
       }}>
         {/* Market Status */}
         <div style={{
@@ -160,6 +161,7 @@ export default function LoginPage() {
           border: '1px solid var(--mvx-border)', borderRadius: 'var(--mvx-radius-card)',
           padding: '48px', boxShadow: '0 24px 80px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.35)',
           animation: mounted ? 'mvx-card-in 300ms ease both' : 'none',
+          maxHeight: '90vh', overflowY: 'auto',
         }}>
           {/* Header */}
           <div style={{ marginBottom: 32 }}>
