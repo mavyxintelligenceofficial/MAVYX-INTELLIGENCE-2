@@ -962,6 +962,16 @@
             Run Analysis Now
           </button>
         </div>
+        
+        <!-- Live Agent Activity Feed (Rebuild Spec Section 8) -->
+        <div id="liveFeedSection" style="display:none;">
+          <div class="section-label" style="margin-bottom:8px;">
+            <span>Live Agent Activity</span>
+            <span id="liveFeedTally" style="font-size:10px;color:var(--text-mute);">0/12 queued</span>
+          </div>
+          <div id="liveFeedRows" class="stack" style="gap:4px;"></div>
+          <div id="liveFeedQuorum" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:700;"></div>
+        </div>
       </div>
 
       <!-- ===== 5.13 Evidence Cards (tab) ===== -->
@@ -1098,165 +1108,183 @@
     });
   });
 
-  // Analyze button — REAL BACKEND + SUPABASE
+  // Analyze button — SSE STREAM + LIVE ACTIVITY FEED
   document.getElementById('analyzeBtn').addEventListener('click', async function(){
     if(this.classList.contains('busy')) return;
     const btn = this, label = document.getElementById('analyzeLabel');
     btn.classList.add('busy');
     label.textContent = 'Analyzing…';
-    showToast('Running 14-agent analysis on EUR/USD…');
     
-    try {
-      const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';
-      const activeTf = document.querySelector('.tf-btn.active');
-      const timeframe = activeTf ? activeTf.textContent.trim() : '4H';
-      
-      const result = await window.mavyxBackend.runAnalysis(symbol, timeframe);
-      
-      if (result) {
-        // Save to Supabase
-        if (window.mavyxSupabase) {
-          try { await window.mavyxSupabase.saveAnalysis(result); } catch {}
-        }
-        
-        // === Update Executive Brief ===
-        const conf = result.confidence || 0;
-        const circumference = 2 * Math.PI * 36;
-        const offset = circumference - (conf / 100) * circumference;
-        const ringFill = document.querySelector('.ring-fill');
-        if (ringFill) {
-          ringFill.setAttribute('stroke-dasharray', circumference.toString());
-          ringFill.setAttribute('stroke-dashoffset', offset.toString());
-        }
-        const ringNum = document.getElementById('briefConfNum');
-        if (ringNum) ringNum.textContent = conf + '%';
-        
-        // Show the brief content, hide the prompt
-        document.getElementById('briefRunPrompt').style.display = 'none';
-        document.getElementById('briefConfidenceBlock').style.opacity = '1';
-        
-        // Bias badge
-        const biasBadge = document.getElementById('briefBias');
-        if (biasBadge) {
-          const rec = result.recommendation || 'wait';
-          const labels = { buy: 'Bullish Bias', sell: 'Bearish Bias', wait: 'Wait', no_trade: 'No Trade' };
-          biasBadge.textContent = labels[rec] || rec.toUpperCase();
-          const colors = { buy: 'var(--green)', sell: 'var(--red)', wait: 'var(--orange)', no_trade: 'var(--gray)' };
-          biasBadge.style.color = colors[rec] || 'var(--text)';
-          biasBadge.style.borderColor = colors[rec] || 'var(--border)';
-          biasBadge.style.background = rec === 'buy' ? 'var(--green-dim)' : rec === 'sell' ? 'var(--red-dim)' : rec === 'wait' ? 'var(--orange-dim)' : 'var(--bg-panel)';
-        }
-        
-        // Summary
-        const summaryEl = document.getElementById('briefSummary');
-        if (summaryEl && result.executive_summary) {
-          summaryEl.textContent = result.executive_summary;
-          summaryEl.style.textAlign = 'left';
-          summaryEl.style.padding = '0';
-          summaryEl.style.color = 'var(--text-soft)';
-        }
-        
-        // Confidence metadata
-        const strengthEl = document.getElementById('briefStrength');
-        const trendEl = document.getElementById('briefTrend');
-        const relEl = document.getElementById('briefReliability');
-        if (strengthEl) strengthEl.textContent = `${result.successful_agents || 0}/${result.total_agents || 0} agents`;
-        if (trendEl) trendEl.textContent = `${result.processing_time_ms || 0}ms processing`;
-        if (relEl) {
-          const c = result.agent_consensus || {};
-          relEl.textContent = `${c.bullish||0}B · ${c.bearish||0}B · ${c.neutral||0}N`;
-        }
-        
-        // Bull/Bear cases
-        const bullList = document.getElementById('briefBullList');
-        const bearList = document.getElementById('briefBearList');
-        if (bullList && result.bull_case) {
-          const cases = Array.isArray(result.bull_case) ? result.bull_case : [result.bull_case];
-          bullList.innerHTML = cases.map(c => `<li>${c}</li>`).join('') || '<li>—</li>';
-        }
-        if (bearList && result.bear_case) {
-          const cases = Array.isArray(result.bear_case) ? result.bear_case : [result.bear_case];
-          bearList.innerHTML = cases.map(c => `<li>${c}</li>`).join('') || '<li>—</li>';
-        }
-        
-        // Info lines
-        const riskEl = document.getElementById('briefRisk');
-        const invEl = document.getElementById('briefInvalidation');
-        const recEl = document.getElementById('briefRecommended');
-        const altEl = document.getElementById('briefAlternative');
-        if (riskEl) riskEl.textContent = result.risk_assessment || '—';
-        if (invEl) invEl.textContent = result.invalidation_level || '—';
-        if (recEl) recEl.textContent = result.recommended_scenario || '—';
-        if (altEl) altEl.textContent = result.alternative_scenario || '—';
-        
-        // === Update Trade Plan ===
-        if (result.suggested_action) {
-          const sa = result.suggested_action;
-          const entryEl = document.getElementById('tpEntry');
-          const stopEl = document.getElementById('tpStop');
-          const targetEl = document.getElementById('tpTarget');
-          const rrEl = document.getElementById('tpRR');
-          if (entryEl && sa.entry_zone) { entryEl.textContent = sa.entry_zone; document.getElementById('tpEntrySub').textContent = sa.entry_reason || ''; }
-          if (stopEl && sa.stop_loss) { stopEl.textContent = sa.stop_loss; document.getElementById('tpStopSub').textContent = sa.stop_reason || ''; }
-          if (targetEl && sa.take_profit_1) { targetEl.textContent = sa.take_profit_1; document.getElementById('tpTargetSub').textContent = sa.target_reason || ''; }
-          if (rrEl) { rrEl.textContent = sa.risk_reward || (conf + '%'); document.getElementById('tpRRSub').textContent = 'Based on ' + conf + '% confidence'; }
-        }
-        
-        // === Update Evidence Grid ===
-        // Backend returns: full_agent_outputs (array of agent dicts) and agent_breakdown (summary array)
-        const agents = result.full_agent_outputs || result.agent_breakdown || result.agent_results || result.agents || [];
-        const grid = document.getElementById('evidenceGrid');
-        const countEl = document.getElementById('evidenceAgentCount');
-        if (grid && agents.length > 0) {
-          countEl.textContent = agents.length + ' Agents';
-          grid.innerHTML = agents.map(a => {
-            const confVal = a.confidence || 0;
-            const status = confVal >= 70 ? 'validated' : confVal >= 45 ? 'uncertain' : 'conflict';
-            const agentName = a.agent_id || a.agent || 'Agent';
-            const summary = a.summary || a.conclusion || '—';
-            const findings = (a.key_findings || []).join('. ');
-            const evidence = (a.evidence || []).join('. ');
-            const limitations = (a.limitations || []).join('. ');
-            const risk = a.risk_assessment || '—';
-            const signal = a.signal || 'neutral';
-            return `<div class="ev-card" data-agent="${agentName.substring(0,2).toUpperCase()}" data-name="${agentName}" data-mission="Signal: ${signal}" data-obs="${summary.replace(/"/g, '&quot;')}" data-evi="${findings.replace(/"/g, '&quot;')}" data-contra="${risk.replace(/"/g, '&quot;')}" data-lim="${limitations.replace(/"/g, '&quot;')}" data-conc="${summary.replace(/"/g, '&quot;')}">
-              <div class="ev-top"><span class="ev-name">${agentName}</span><span class="ev-status ${status}"></span></div>
-              <div class="ev-conf">Confidence ${confVal}% · ${signal}</div>
-              <div class="ev-bar"><span style="width:${confVal}%"></span></div>
-              <div class="ev-finding">${summary.substring(0, 80)}</div>
-            </div>`;
-          }).join('');
-          
-          // Re-wire evidence card clicks
-          grid.querySelectorAll('.ev-card').forEach(card => {
-            card.addEventListener('click', () => {
-              grid.querySelectorAll('.ev-card').forEach(c => c.classList.remove('selected'));
-              card.classList.add('selected');
-              document.getElementById('agentIcon').textContent = card.dataset.agent;
-              document.getElementById('agentName').textContent = card.dataset.name;
-              document.getElementById('agentMission').textContent = card.dataset.mission || '—';
-              document.getElementById('agentObs').textContent = card.dataset.obs || '—';
-              document.getElementById('agentEvi').textContent = card.dataset.evi || '—';
-              document.getElementById('agentContra').textContent = card.dataset.contra || '—';
-              document.getElementById('agentLim').textContent = card.dataset.lim || '—';
-              document.getElementById('agentConc').textContent = card.dataset.conc || '—';
-              document.getElementById('briefAgentPanel').style.display = 'block';
-              activateAiTab('brief');
-              document.querySelector('.ai-body#tab-brief').scrollTo({top: document.querySelector('#briefAgentPanel').offsetTop - 20, behavior:'smooth'});
-            });
-          });
-        }
-        
-        showToast('Analysis complete — all panels updated');
-        activateAiTab('brief');
-      }
-    } catch(err) {
-      showToast('Analysis failed: ' + (err.message || 'Unknown error'));
+    const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';
+    const activeTf = document.querySelector('.tf-btn.active');
+    const timeframe = activeTf ? activeTf.textContent.trim() : '4H';
+    
+    // Show Live Activity Feed
+    const feedSection = document.getElementById('liveFeedSection');
+    const feedRows = document.getElementById('liveFeedRows');
+    const feedTally = document.getElementById('liveFeedTally');
+    const feedQuorum = document.getElementById('liveFeedQuorum');
+    feedSection.style.display = 'block';
+    feedRows.innerHTML = '';
+    feedQuorum.style.display = 'none';
+    document.getElementById('briefRunPrompt').style.display = 'none';
+    
+    const agentStatuses = {};
+    const AGENT_DISPLAY = {
+      'session_boundaries':'Session Boundaries','premium_discount':'Premium/Discount',
+      'market_structure':'Market Structure','liquidity':'Liquidity','order_blocks':'Order Blocks',
+      'fair_value_gaps':'Fair Value Gaps','break_of_structure':'Break of Structure',
+      'change_of_character':'Change of Character','institutional_targets':'Institutional Targets',
+      'invalidation_levels':'Invalidation Levels','news_fundamental':'News/Fundamental',
+      'executive_synthesis':'Executive Synthesis','quorum_gate':'Quorum Gate','pipeline':'Pipeline',
+    };
+    
+    function updateTally() {
+      const entries = Object.entries(agentStatuses);
+      const done = entries.filter(([,s]) => s === 'completed').length;
+      const fail = entries.filter(([,s]) => s === 'failed').length;
+      const run = entries.filter(([,s]) => s === 'running' || s === 'retrying').length;
+      feedTally.textContent = `${done}/${entries.length} completed` + (fail ? `, ${fail} failed` : '') + (run ? `, ${run} running` : '');
     }
     
-    btn.classList.remove('busy');
-    label.textContent = 'Analyze';
+    function renderRow(ev) {
+      agentStatuses[ev.agent] = ev.status;
+      updateTally();
+      let row = document.getElementById('feed-' + ev.agent);
+      if (!row) {
+        row = document.createElement('div');
+        row.id = 'feed-' + ev.agent;
+        row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--bg-panel);border:1px solid var(--border);border-radius:6px;font-size:11px;';
+        feedRows.appendChild(row);
+      }
+      const colors = {queued:'var(--gray)',running:'var(--gold)',completed:'var(--green)',failed:'var(--red)',retrying:'var(--orange)'};
+      const c = colors[ev.status] || 'var(--gray)';
+      const icons = {running:'⟳',completed:'✓',failed:'✗',retrying:'↻'};
+      const icon = icons[ev.status] || '⏳';
+      let preview = '';
+      if (ev.output_preview) {
+        const b = ev.output_preview.bias || '';
+        const cf = ev.output_preview.confidence ? Math.round(ev.output_preview.confidence*100)+'%' : '';
+        const lv = ev.output_preview.key_levels?.[0];
+        preview = `${b} · ${cf}` + (lv ? ` · ${lv.type} ${lv.price}` : '');
+      }
+      if (ev.error && ev.status === 'failed') preview = ev.error.substring(0,60);
+      const dur = ev.duration_ms ? ev.duration_ms+'ms' : '';
+      row.innerHTML = `<span style="width:18px;text-align:center;font-size:12px;color:${c}">${icon}</span><span style="flex:1;font-weight:700;color:var(--text-soft)">${AGENT_DISPLAY[ev.agent]||ev.agent}</span><span style="font-size:10px;color:${c};font-weight:700;text-transform:uppercase">${ev.status}</span>${dur?`<span style="font-size:10px;color:var(--text-mute)">${dur}</span>`:''}${preview?`<span style="font-size:10px;color:var(--text-mute);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview}</span>`:''}`;
+      row.style.borderColor = ev.status==='running'?'var(--gold-line)':ev.status==='completed'?'var(--border)':ev.status==='failed'?'rgba(178,74,68,.3)':'var(--border)';
+      row.style.background = ev.status==='running'?'var(--gold-dim)':ev.status==='failed'?'var(--red-dim)':'var(--bg-panel)';
+    }
+    
+    showToast('Running 12-agent analysis on ' + symbol + '…');
+    
+    window.mavyxBackend.runAnalysisStream(symbol, timeframe, {
+      onAgentStatus(ev) { renderRow(ev); },
+      onComplete(result) {
+        feedSection.style.display = 'none';
+        if (window.mavyxSupabase) { try { window.mavyxSupabase.saveAnalysis(result); } catch {} }
+        updateBriefFromResult(result);
+        showToast('Analysis complete — all panels updated');
+        activateAiTab('brief');
+      },
+      onError(err) {
+        feedQuorum.style.display = 'block';
+        feedQuorum.style.background = 'var(--red-dim)';
+        feedQuorum.style.color = 'var(--red)';
+        feedQuorum.style.border = '1px solid rgba(178,74,68,.3)';
+        feedQuorum.textContent = 'Error: ' + (err || 'Analysis failed');
+        showToast('Analysis error: ' + (err || 'Unknown'));
+      },
+      onEnd() { btn.classList.remove('busy'); label.textContent = 'Analyze'; },
+    });
   });
+  
+  function updateBriefFromResult(result) {
+    if (!result) return;
+    const conf = result.confidence || 0;
+    const circumference = 2 * Math.PI * 36;
+    const offset = circumference - (conf / 100) * circumference;
+    const ringFill = document.querySelector(".ring-fill");
+    if (ringFill) {
+      ringFill.setAttribute("stroke-dasharray", circumference.toString());
+      ringFill.setAttribute("stroke-dashoffset", offset.toString());
+    }
+    const ringNum = document.getElementById("briefConfNum");
+    if (ringNum) ringNum.textContent = Math.round(conf * 100) + "%";
+    document.getElementById("briefRunPrompt").style.display = "none";
+    document.getElementById("briefConfidenceBlock").style.opacity = "1";
+    const biasBadge = document.getElementById("briefBias");
+    if (biasBadge) {
+      const rec = result.recommendation || "wait";
+      const labels = {buy:"Bullish Bias",sell:"Bearish Bias",wait:"Wait",no_trade:"No Trade"};
+      biasBadge.textContent = labels[rec] || rec.toUpperCase();
+      const colors = {buy:"var(--green)",sell:"var(--red)",wait:"var(--orange)",no_trade:"var(--gray)"};
+      biasBadge.style.color = colors[rec] || "var(--text)";
+      biasBadge.style.borderColor = colors[rec] || "var(--border)";
+      biasBadge.style.background = rec==="buy"?"var(--green-dim)":rec==="sell"?"var(--red-dim)":rec==="wait"?"var(--orange-dim)":"var(--bg-panel)";
+    }
+    const summaryEl = document.getElementById("briefSummary");
+    if (summaryEl && result.executive_summary) {
+      summaryEl.textContent = result.executive_summary;
+      summaryEl.style.textAlign = "left";
+      summaryEl.style.padding = "0";
+      summaryEl.style.color = "var(--text-soft)";
+    }
+    const strengthEl = document.getElementById("briefStrength");
+    const trendEl = document.getElementById("briefTrend");
+    const relEl = document.getElementById("briefReliability");
+    if (strengthEl) strengthEl.textContent = (result.successful_agents||0)+"/"+(result.total_agents||0)+" agents";
+    if (trendEl) trendEl.textContent = (result.processing_time_ms||0)+"ms processing";
+    if (relEl) { const c = result.agent_consensus||{}; relEl.textContent = (c.bullish||0)+"B "+(c.bearish||0)+"B "+(c.neutral||0)+"N"; }
+    const bullList = document.getElementById("briefBullList");
+    const bearList = document.getElementById("briefBearList");
+    if (bullList && result.bull_case) {
+      const cases = Array.isArray(result.bull_case)?result.bull_case:[result.bull_case];
+      bullList.innerHTML = cases.map(c=>"<li>"+c+"</li>").join("") || "<li>+</li>";
+    }
+    if (bearList && result.bear_case) {
+      const cases = Array.isArray(result.bear_case)?result.bear_case:[result.bear_case];
+      bearList.innerHTML = cases.map(c=>"<li>"+c+"</li>").join("") || "<li>+</li>";
+    }
+    const riskEl = document.getElementById("briefRisk");
+    const invEl = document.getElementById("briefInvalidation");
+    const recEl = document.getElementById("briefRecommended");
+    const altEl = document.getElementById("briefAlternative");
+    if (riskEl) riskEl.textContent = result.risk_assessment || "+";
+    if (invEl) invEl.textContent = result.invalidation_price || "+";
+    if (recEl) recEl.textContent = result.recommended_scenario || "+";
+    if (altEl) altEl.textContent = result.alternative_scenario || "+";
+    const agents = result.full_agent_outputs || result.agent_breakdown || [];
+    const grid = document.getElementById("evidenceGrid");
+    const countEl = document.getElementById("evidenceAgentCount");
+    if (grid && agents.length > 0) {
+      countEl.textContent = agents.length + " Agents";
+      grid.innerHTML = agents.map(a => {
+        const cv = Math.round((a.confidence||0)*100);
+        const st = cv>=70?"validated":cv>=45?"uncertain":"conflict";
+        const nm = a.agent_id||a.agent||"Agent";
+        const sm = a.summary||a.reasoning||"+";
+        const suf = a.data_sufficient!==false;
+        const sig = a.signal||a.bias||"neutral";
+        return "<div class="ev-card" data-agent=""+nm.substring(0,2).toUpperCase()+"" data-name=""+nm+"" data-mission="Signal: "+sig+"" data-obs=""+sm.replace(/"/g,"&quot;")+"" data-evi=""+((a.key_findings||[]).join(". ")).replace(/"/g,"&quot;")+"" data-contra=""+((a.risk_assessment||"+").replace(/"/g,"&quot;"))+"" data-lim=""+((a.limitations||[]).join(". ")).replace(/"/g,"&quot;")+"" data-conc=""+sm.replace(/"/g,"&quot;")+""><div class="ev-top"><span class="ev-name">"+nm+"</span><span class="ev-status "+st+""></span></div><div class="ev-conf">"+(suf?"Confidence "+cv+"%":"Insufficient Data")+" "+sig+"</div><div class="ev-bar"><span style="width:"+cv+"%"></span></div><div class="ev-finding">"+sm.substring(0,80)+"</div></div>";
+      }).join("");
+      grid.querySelectorAll(".ev-card").forEach(card => {
+        card.addEventListener("click", () => {
+          grid.querySelectorAll(".ev-card").forEach(c => c.classList.remove("selected"));
+          card.classList.add("selected");
+          document.getElementById("agentIcon").textContent = card.dataset.agent;
+          document.getElementById("agentName").textContent = card.dataset.name;
+          document.getElementById("agentMission").textContent = card.dataset.mission || "+";
+          document.getElementById("agentObs").textContent = card.dataset.obs || "+";
+          document.getElementById("agentEvi").textContent = card.dataset.evi || "+";
+          document.getElementById("agentContra").textContent = card.dataset.contra || "+";
+          document.getElementById("agentLim").textContent = card.dataset.lim || "+";
+          document.getElementById("agentConc").textContent = card.dataset.conc || "+";
+          document.getElementById("briefAgentPanel").style.display = "block";
+          activateAiTab("brief");
+        });
+      });
+    }
+  }
   document.querySelector('.btn-primary').addEventListener('click', async function(){
     if(this.disabled) return;
     const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';

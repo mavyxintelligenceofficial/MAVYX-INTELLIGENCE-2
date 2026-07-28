@@ -64,6 +64,46 @@ async function runAnalysis(symbol, timeframe) {
   });
 }
 
+/**
+ * Run analysis with SSE for Live Activity Feed (Rebuild Spec Section 8).
+ * Callbacks: onAgentStatus, onComplete, onError, onEnd
+ */
+function runAnalysisStream(symbol, timeframe, callbacks) {
+  const token = getToken();
+  const controller = new AbortController();
+  
+  fetch(`${API_BASE}/ai/analyze/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
+    body: JSON.stringify({ symbol, timeframe }),
+    signal: controller.signal,
+  }).then(async response => {
+    if (!response.ok) { callbacks.onError?.('Stream failed'); return; }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const event = JSON.parse(line.slice(6));
+          if (event.event === 'agent_status') callbacks.onAgentStatus?.(event);
+          else if (event.event === 'analysis_complete') callbacks.onComplete?.(event.result);
+          else if (event.event === 'analysis_error') callbacks.onError?.(event.error);
+          else if (event.event === 'stream_end') { callbacks.onEnd?.(); return; }
+        } catch {}
+      }
+    }
+  }).catch(err => { if (err.name !== 'AbortError') callbacks.onError?.(err.message); });
+  
+  return { abort: () => controller.abort() };
+}
+
 async function fetchAnalysisHistory() {
   try {
     return await apiRequest('/ai/analyze/history');
@@ -427,6 +467,7 @@ window.mavyxBackend = {
   
   // AI
   runAnalysis,
+  runAnalysisStream,
   fetchAnalysisHistory,
   getAnalysis,
   sendChatMessage,
