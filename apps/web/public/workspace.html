@@ -6,6 +6,7 @@
 <title>Mavyx Intelligence — Executive Intelligence Workspace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
 <style>
   :root{
     /* ===== 5.2 Brand Identity ===== */
@@ -723,7 +724,7 @@
           <a class="dropdown-link" id="viewProfileLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M6 21v-1a6 6 0 0 1 12 0v1"/></svg>View Profile</a>
           <a class="dropdown-link" id="openSettingsLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Settings</a>
           <div class="dropdown-divider"></div>
-          <a class="dropdown-link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>Logout</a>
+          <a class="dropdown-link" id="logoutLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>Logout</a>
         </div>
       </div>
     </div>
@@ -830,15 +831,7 @@
            so a real `new TradingView.widget({...})` (or the Advanced Chart embed) can be dropped in
            at full width/height without any layout shift. -->
       <div class="chart-area" id="tvChartMount">
-        <div class="crosshair-readout">
-          <span>O <b>1.08392</b></span>
-          <span>H <b>1.08471</b></span>
-          <span>L <b>1.08355</b></span>
-          <span>C <b>1.08421</b></span>
-          <span>Vol <b>12.4K</b></span>
-          <span>Spread <b>0.6p</b></span>
-        </div>
-        <svg class="chart-svg" viewBox="0 0 900 420" preserveAspectRatio="none" id="chartSvg"></svg>
+        <div id="tradingview_chart" style="width:100%;height:100%;"></div>
       </div>
       </div>
 
@@ -1052,6 +1045,20 @@
     </aside>
   </div>
 
+  <!-- Search Modal -->
+  <div id="searchModal" style="display:none;position:fixed;inset:0;z-index:600;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);align-items:flex-start;justify-content:center;padding-top:120px;">
+    <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;width:520px;max-height:420px;overflow:hidden;box-shadow:0 30px 60px -20px rgba(0,0,0,.85);">
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--border);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16" style="color:var(--text-mute);"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input type="text" id="searchInput" placeholder="Search markets, journal, pages…" style="flex:1;background:transparent;border:none;outline:none;font-size:14px;color:var(--text);font-family:inherit;">
+        <kbd style="font-size:10px;border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--text-mute);">ESC</kbd>
+      </div>
+      <div id="searchResults" style="overflow-y:auto;max-height:340px;padding:8px;">
+        <div style="padding:16px;text-align:center;color:var(--text-mute);font-size:12px;">Start typing to search…</div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-stack" id="toastStack"></div>
 
   <!-- ============ 5.20 BOTTOM INTELLIGENCE DOCK ============ -->
@@ -1071,22 +1078,7 @@
 
 <script src="/backend-bridge.js"></script>
 <script>
-  // Live clock
-  function tick(){
-    const el = document.getElementById('clock');
-    const d = new Date();
-    el.textContent = d.toISOString().substr(11,8) + ' UTC';
-  }
-  setInterval(tick, 1000); tick();
-
-  // Timeframe selection
-  document.querySelectorAll('.tf-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      document.querySelectorAll('.tf-btn').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      showToast('Timeframe set to ' + btn.textContent);
-    });
-  });
+  // Note: Clock and timeframe are handled in the bottom script block
 
   // Overlay toggle chips
   document.querySelectorAll('.overlay-toggles .chip').forEach(chip=>{
@@ -1191,6 +1183,23 @@
   });
   document.querySelector('.btn-primary').addEventListener('click', function(){
     if(this.disabled) return;
+    const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';
+    const entry = document.querySelector('.tc-value.entry')?.textContent || '';
+    const stop = document.querySelector('.tc-value.stop')?.textContent || '';
+    const target = document.querySelector('.tc-value.target')?.textContent || '';
+    
+    window.mavyxBackend.saveJournalEntry({
+      symbol: symbol,
+      direction: 'buy',
+      entry: entry,
+      exit: '',
+      stopLoss: stop,
+      target: target,
+      pnl: 0,
+      notes: 'Trade plan logged from Workspace',
+      status: 'planned',
+    });
+    
     const original = this.textContent;
     this.textContent = 'Trade Plan Logged ✓';
     showToast('Trade plan saved to your journal');
@@ -1264,11 +1273,100 @@
   document.getElementById('riskBtn').addEventListener('click', ()=> showToast('Risk overview: nominal · 0.8% open exposure'));
   document.getElementById('aiStatusBtn').addEventListener('click', ()=> showToast('8/8 specialist agents online · synthesizing latest tick'));
 
-  // ---- Search bar ----
-  document.getElementById('searchBar').addEventListener('click', ()=> showToast('Search opened — start typing to find markets, journal entries or docs'));
+  // ---- Search bar + Ctrl+K ----
+  const searchModal = document.getElementById('searchModal');
+  const searchInput = document.getElementById('searchInput');
+  const searchResults = document.getElementById('searchResults');
+  
+  const SEARCH_ITEMS = [
+    { label: 'EUR/USD', type: 'market', action: () => { document.querySelector('.tb-pair .sym').textContent = 'EUR/USD'; currentSymbol = 'FX:EURUSD'; initTradingView(currentSymbol); }},
+    { label: 'GBP/USD', type: 'market', action: () => { document.querySelector('.tb-pair .sym').textContent = 'GBP/USD'; currentSymbol = 'FX:GBPUSD'; initTradingView(currentSymbol); }},
+    { label: 'USD/JPY', type: 'market', action: () => { document.querySelector('.tb-pair .sym').textContent = 'USD/JPY'; currentSymbol = 'FX:USDJPY'; initTradingView(currentSymbol); }},
+    { label: 'XAU/USD (Gold)', type: 'market', action: () => { document.querySelector('.tb-pair .sym').textContent = 'XAU/USD'; currentSymbol = 'TVC:GOLD'; initTradingView(currentSymbol); }},
+    { label: 'BTC/USD', type: 'market', action: () => { document.querySelector('.tb-pair .sym').textContent = 'BTC/USD'; currentSymbol = 'BINANCE:BTCUSDT'; initTradingView(currentSymbol); }},
+    { label: 'Dashboard', type: 'page', action: () => openAdHocPanel('Dashboard') },
+    { label: 'Markets', type: 'page', action: () => openAdHocPanel('Markets') },
+    { label: 'Trade Journal', type: 'page', action: () => openAdHocPanel('Trade Journal') },
+    { label: 'Analytics', type: 'page', action: () => openAdHocPanel('Analytics') },
+    { label: 'Watchlist', type: 'page', action: () => openAdHocPanel('Watchlist') },
+    { label: 'Economic Calendar', type: 'page', action: () => openAdHocPanel('Economic Calendar') },
+    { label: 'Executive Brief', type: 'page', action: () => activateAiTab('brief') },
+    { label: 'AI Chat', type: 'page', action: () => activateAiTab('chat') },
+    { label: 'Evidence', type: 'page', action: () => activateAiTab('evidence') },
+    { label: 'Alerts', type: 'page', action: () => activateAiTab('alerts') },
+    { label: 'Settings', type: 'page', action: () => openSettingsPanel('appearance') },
+    { label: 'Run Analysis', type: 'action', action: () => document.getElementById('analyzeBtn').click() },
+  ];
+  
+  // Add journal entries to search
+  function getSearchItems() {
+    const items = [...SEARCH_ITEMS];
+    const journal = window.mavyxBackend.getJournalEntries();
+    journal.forEach(e => {
+      items.push({ label: `${e.symbol || 'Trade'} — ${e.direction} (${new Date(e.createdAt).toLocaleDateString()})`, type: 'journal', action: () => openAdHocPanel('Trade Journal') });
+    });
+    return items;
+  }
+  
+  function openSearch() {
+    searchModal.style.display = 'flex';
+    searchInput.value = '';
+    searchInput.focus();
+    renderSearchResults('');
+  }
+  
+  function closeSearch() {
+    searchModal.style.display = 'none';
+  }
+  
+  function renderSearchResults(query) {
+    const items = getSearchItems();
+    const q = query.toLowerCase().trim();
+    const filtered = q ? items.filter(i => i.label.toLowerCase().includes(q)) : items;
+    const typeIcons = { market: '📈', page: '📄', action: '⚡', journal: '📓' };
+    const typeLabels = { market: 'Market', page: 'Page', action: 'Action', journal: 'Journal' };
+    
+    if (filtered.length === 0) {
+      searchResults.innerHTML = '<div style="padding:16px;text-align:center;color:var(--text-mute);font-size:12px;">No results found</div>';
+      return;
+    }
+    
+    searchResults.innerHTML = filtered.map((item, i) => `
+      <div class="dropdown-link" data-search-idx="${i}" style="cursor:pointer;padding:8px 10px;">
+        <span style="font-size:14px;">${typeIcons[item.type] || '📄'}</span>
+        <span style="flex:1;">${item.label}</span>
+        <span style="font-size:10px;color:var(--text-mute);">${typeLabels[item.type] || ''}</span>
+      </div>
+    `).join('');
+    
+    searchResults.querySelectorAll('[data-search-idx]').forEach(el => {
+      el.addEventListener('click', () => {
+        const idx = parseInt(el.dataset.searchIdx);
+        if (filtered[idx]) {
+          filtered[idx].action();
+          closeSearch();
+        }
+      });
+    });
+  }
+  
+  searchInput?.addEventListener('input', () => renderSearchResults(searchInput.value));
+  searchModal.addEventListener('click', (e) => { if (e.target === searchModal) closeSearch(); });
+  
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      openSearch();
+    }
+    if (e.key === 'Escape' && searchModal.style.display === 'flex') {
+      closeSearch();
+    }
+  });
+  
+  document.getElementById('searchBar').addEventListener('click', openSearch);
 
   // ---- Sidebar navigation ----
-  const AD_HOC_VIEWS = ['Markets','Trade Journal','Analytics','Watchlist','Economic Calendar'];
+  const AD_HOC_VIEWS = ['Dashboard','Markets','Trade Journal','Analytics','Watchlist','Economic Calendar'];
   document.querySelectorAll('.nav-item').forEach(item=>{
     item.addEventListener('click', ()=>{
       document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
@@ -1280,7 +1378,11 @@
       } else if(view === 'Settings'){
         window.openSettingsPanel && window.openSettingsPanel('appearance');
       } else if(view === 'Logout'){
-        showToast('Logged out (demo only)');
+        // Real logout
+        localStorage.removeItem('mavyx-auth-store');
+        window.location.href = '/login';
+      } else if(view === 'Workspace'){
+        showToast('You are in the Workspace');
       } else if(AD_HOC_VIEWS.includes(view)){
         window.openAdHocPanel && window.openAdHocPanel(view);
       } else {
@@ -1915,19 +2017,359 @@
       'Economic Calendar': '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     };
 
+    // ─── Build real content for each ad-hoc panel ─────────────────
+    const MAJOR_PAIRS = ['EUR/USD','GBP/USD','USD/JPY','USD/CHF','AUD/USD','NZD/USD','USD/CAD','EUR/GBP','EUR/JPY','GBP/JPY','XAU/USD','BTC/USD'];
+
+    function buildMarketsContent(body) {
+      body.style.padding = '0';
+      body.style.overflow = 'auto';
+      body.innerHTML = `<div style="padding:16px;">
+        <div class="section-label" style="margin-bottom:12px;">Live Market Quotes</div>
+        <div id="marketsList" class="stack" style="gap:6px;">
+          ${MAJOR_PAIRS.map(p => `
+            <div class="notif-item" data-pair="${p}" style="cursor:pointer;">
+              <div class="notif-cat market" style="font-size:10px;">${p.split('/')[0].substring(0,2)}</div>
+              <div style="flex:1;">
+                <div class="notif-title">${p}</div>
+                <div class="notif-time" id="mkt-${p.replace('/','')}">Loading…</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:13px;font-weight:700;" id="mkt-px-${p.replace('/','')}">—</div>
+                <div style="font-size:10px;" id="mkt-chg-${p.replace('/','')}">—</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+      // Load quotes
+      loadMarketQuotes();
+    }
+
+    async function loadMarketQuotes() {
+      for (const pair of MAJOR_PAIRS) {
+        const id = pair.replace('/', '');
+        try {
+          const q = await window.mavyxBackend.fetchQuote(pair);
+          const pxEl = document.getElementById('mkt-px-' + id);
+          const chgEl = document.getElementById('mkt-chg-' + id);
+          const timeEl = document.getElementById('mkt-' + id);
+          if (pxEl && q) {
+            pxEl.textContent = q.price || q.close || '—';
+            const chg = q.change_percent || q.percent_change || 0;
+            const numChg = parseFloat(chg);
+            chgEl.textContent = (numChg >= 0 ? '▲ +' : '▼ ') + numChg.toFixed(2) + '%';
+            chgEl.style.color = numChg >= 0 ? 'var(--green)' : 'var(--red)';
+            timeEl.textContent = q.exchange || 'Forex';
+          }
+        } catch {
+          const pxEl = document.getElementById('mkt-px-' + id);
+          if (pxEl) pxEl.textContent = '—';
+        }
+        await new Promise(r => setTimeout(r, 8000)); // rate limit protection
+      }
+    }
+
+    function buildTradeJournalContent(body) {
+      body.style.padding = '16px';
+      body.style.overflow = 'auto';
+      const entries = window.mavyxBackend.getJournalEntries();
+      body.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">
+          Trade Journal
+          <button class="settings-save" id="addJournalBtn" style="width:auto;padding:5px 12px;margin:0;font-size:11px;">+ New Entry</button>
+        </div>
+        <div id="journalForm" style="display:none;margin-bottom:16px;">
+          <div class="settings-field"><label>Symbol</label><input type="text" id="jf-symbol" value="EUR/USD" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;"></div>
+          <div class="settings-field"><label>Direction</label>
+            <div style="display:flex;gap:6px;">
+              <button class="chip on" data-dir="buy" style="cursor:pointer;flex:1;justify-content:center;">Buy</button>
+              <button class="chip" data-dir="sell" style="cursor:pointer;flex:1;justify-content:center;">Sell</button>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <div class="settings-field"><label>Entry</label><input type="text" id="jf-entry" placeholder="1.0850" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;"></div>
+            <div class="settings-field"><label>Exit</label><input type="text" id="jf-exit" placeholder="1.0890" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;"></div>
+            <div class="settings-field"><label>Stop Loss</label><input type="text" id="jf-sl" placeholder="1.0820" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;"></div>
+            <div class="settings-field"><label>PnL (pips)</label><input type="text" id="jf-pnl" placeholder="+40" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;"></div>
+          </div>
+          <div class="settings-field"><label>Notes</label><textarea id="jf-notes" rows="3" placeholder="What was your reasoning?" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;resize:vertical;"></textarea></div>
+          <div style="display:flex;gap:8px;">
+            <button class="settings-save" id="saveJournalBtn" style="flex:1;">Save Entry</button>
+            <button class="settings-save" id="cancelJournalBtn" style="flex:1;background:var(--bg-panel);color:var(--text-soft);border:1px solid var(--border);">Cancel</button>
+          </div>
+        </div>
+        <div id="journalEntries" class="stack" style="gap:8px;">
+          ${entries.length === 0 ? '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">No journal entries yet. Click "+ New Entry" to log your first trade.</div>' :
+          entries.map(e => `
+            <div class="notif-item" data-jid="${e.id}">
+              <div class="notif-cat ${(e.pnl||0) >= 0 ? 'market' : 'risk'}" style="font-size:9px;">${e.direction === 'sell' ? 'S' : 'B'}</div>
+              <div style="flex:1;">
+                <div class="notif-title">${e.symbol || 'EUR/USD'} · ${e.direction || 'buy'}</div>
+                <div class="notif-time">${e.entry || '—'} → ${e.exit || '—'} · ${new Date(e.createdAt).toLocaleDateString()}</div>
+              </div>
+              <div style="text-align:right;">
+                <div style="font-size:12px;font-weight:700;color:${(e.pnl||0) >= 0 ? 'var(--green)' : 'var(--red)'};">${(e.pnl||0) >= 0 ? '+' : ''}${e.pnl || 0} pips</div>
+              </div>
+            </div>
+          `).join('')}
+        </div>`;
+      // Wire up form
+      const addBtn = body.querySelector('#addJournalBtn');
+      const form = body.querySelector('#journalForm');
+      addBtn.addEventListener('click', () => { form.style.display = form.style.display === 'none' ? 'block' : 'none'; });
+      body.querySelector('#cancelJournalBtn').addEventListener('click', () => { form.style.display = 'none'; });
+      form.querySelectorAll('[data-dir]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          form.querySelectorAll('[data-dir]').forEach(b => b.classList.remove('on'));
+          btn.classList.add('on');
+        });
+      });
+      body.querySelector('#saveJournalBtn').addEventListener('click', () => {
+        const entry = {
+          symbol: body.querySelector('#jf-symbol').value,
+          direction: form.querySelector('[data-dir].on')?.dataset.dir || 'buy',
+          entry: body.querySelector('#jf-entry').value,
+          exit: body.querySelector('#jf-exit').value,
+          stopLoss: body.querySelector('#jf-sl').value,
+          pnl: parseFloat(body.querySelector('#jf-pnl').value) || 0,
+          notes: body.querySelector('#jf-notes').value,
+        };
+        entry.rr = entry.stopLoss && entry.entry && entry.exit ? Math.abs(parseFloat(entry.exit) - parseFloat(entry.entry)) / Math.abs(parseFloat(entry.entry) - parseFloat(entry.stopLoss)) : 0;
+        window.mavyxBackend.saveJournalEntry(entry);
+        showToast('Trade logged to journal');
+        // Re-render
+        buildTradeJournalContent(body);
+      });
+    }
+
+    function buildAnalyticsContent(body) {
+      body.style.padding = '16px';
+      body.style.overflow = 'auto';
+      const stats = window.mavyxBackend.computeAnalytics();
+      body.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">Performance Analytics</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div class="tc-card"><div class="tc-label">Total Trades</div><div class="tc-value entry">${stats.totalTrades}</div></div>
+          <div class="tc-card"><div class="tc-label">Win Rate</div><div class="tc-value rr">${stats.winRate}%</div></div>
+          <div class="tc-card"><div class="tc-label">Avg R:R</div><div class="tc-value target">${stats.avgRR}</div></div>
+          <div class="tc-card"><div class="tc-label">Total PnL</div><div class="tc-value ${parseFloat(stats.totalPnL) >= 0 ? 'target' : 'stop'}">${parseFloat(stats.totalPnL) >= 0 ? '+' : ''}${stats.totalPnL} pips</div></div>
+          <div class="tc-card"><div class="tc-label">Current Streak</div><div class="tc-value ${stats.streak >= 0 ? 'target' : 'stop'}">${stats.streak > 0 ? stats.streak + ' Wins' : stats.streak < 0 ? Math.abs(stats.streak) + ' Losses' : 'N/A'}</div></div>
+          <div class="tc-card"><div class="tc-label">Best Trade</div><div class="tc-value target">${stats.bestTrade ? '+' + (stats.bestTrade.pnl || 0) + ' pips' : 'N/A'}</div></div>
+        </div>
+        ${Object.keys(stats.byPair).length > 0 ? `
+        <div class="section-label" style="margin-bottom:8px;">By Pair</div>
+        ${Object.entries(stats.byPair).map(([pair, data]) => `
+          <div class="info-line"><span>${pair}</span><b>${data.trades} trades · ${data.pnl >= 0 ? '+' : ''}${data.pnl.toFixed(1)} pips · ${data.trades > 0 ? ((data.wins/data.trades)*100).toFixed(0) : 0}% WR</b></div>
+        `).join('')}
+        ` : '<div style="text-align:center;color:var(--text-mute);padding:16px;font-size:12px;">Log trades in the Trade Journal to see analytics.</div>'}`;
+    }
+
+    function buildWatchlistContent(body) {
+      body.style.padding = '16px';
+      body.style.overflow = 'auto';
+      const user = window.mavyxBackend.getUser();
+      const email = user?.email || 'User';
+      const initials = email.substring(0, 2).toUpperCase();
+      body.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">
+          Watchlist
+          <button class="settings-save" id="addWatchBtn" style="width:auto;padding:5px 12px;margin:0;font-size:11px;">+ Add Pair</button>
+        </div>
+        <div id="watchlistAdd" style="display:none;margin-bottom:12px;">
+          <div style="display:flex;gap:6px;">
+            <input type="text" id="watchInput" placeholder="e.g. GBP/USD" style="flex:1;background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;">
+            <button class="settings-save" id="confirmWatchAdd" style="width:auto;padding:9px 14px;">Add</button>
+          </div>
+        </div>
+        <div id="watchlistItems" class="stack" style="gap:6px;"><div class="skeleton" style="height:40px;"></div></div>`;
+      const addBtn = body.querySelector('#addWatchBtn');
+      const addDiv = body.querySelector('#watchlistAdd');
+      addBtn.addEventListener('click', () => { addDiv.style.display = addDiv.style.display === 'none' ? 'block' : 'none'; });
+      body.querySelector('#confirmWatchAdd').addEventListener('click', async () => {
+        const sym = body.querySelector('#watchInput').value.trim().toUpperCase();
+        if (!sym) return;
+        try {
+          const current = await window.mavyxBackend.getWatchlist();
+          if (!current.includes(sym)) {
+            current.push(sym);
+            await window.mavyxBackend.updateWatchlist(current);
+            showToast(sym + ' added to watchlist');
+            loadWatchlist(body);
+          }
+        } catch { showToast('Failed to update watchlist'); }
+        body.querySelector('#watchInput').value = '';
+        addDiv.style.display = 'none';
+      });
+      loadWatchlist(body);
+    }
+
+    async function loadWatchlist(body) {
+      const container = body.querySelector('#watchlistItems');
+      try {
+        const symbols = await window.mavyxBackend.getWatchlist();
+        if (symbols.length === 0) {
+          container.innerHTML = '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">Your watchlist is empty. Click "+ Add Pair" to start tracking symbols.</div>';
+          return;
+        }
+        container.innerHTML = symbols.map(s => `
+          <div class="notif-item" data-wsym="${s}">
+            <div class="notif-cat market" style="font-size:10px;">${s.split('/')[0].substring(0,2)}</div>
+            <div style="flex:1;">
+              <div class="notif-title">${s}</div>
+              <div class="notif-time" id="wl-t-${s.replace('/','')}">Loading…</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-size:13px;font-weight:700;" id="wl-p-${s.replace('/','')}">—</div>
+              <button class="ph-btn close-btn" data-remove="${s}" style="width:18px;height:18px;" title="Remove">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+        `).join('');
+        // Wire remove buttons
+        container.querySelectorAll('[data-remove]').forEach(btn => {
+          btn.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            const sym = btn.dataset.remove;
+            const syms = await window.mavyxBackend.getWatchlist();
+            await window.mavyxBackend.updateWatchlist(syms.filter(s => s !== sym));
+            showToast(sym + ' removed from watchlist');
+            loadWatchlist(body);
+          });
+        });
+        // Load prices
+        for (const s of symbols) {
+          try {
+            const q = await window.mavyxBackend.fetchQuote(s);
+            const pxE = document.getElementById('wl-p-' + s.replace('/', ''));
+            const tE = document.getElementById('wl-t-' + s.replace('/', ''));
+            if (pxE && q) {
+              pxE.textContent = q.price || q.close || '—';
+              tE.textContent = q.exchange || 'Forex';
+            }
+          } catch {}
+          await new Promise(r => setTimeout(r, 8000));
+        }
+      } catch {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">Could not load watchlist. Make sure you are logged in.</div>';
+      }
+    }
+
+    function buildCalendarContent(body) {
+      body.style.padding = '16px';
+      body.style.overflow = 'auto';
+      body.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">Economic Calendar</div>
+        <div id="calendarItems" class="stack" style="gap:6px;">
+          <div class="skeleton" style="height:40px;"></div>
+          <div class="skeleton" style="height:40px;"></div>
+          <div class="skeleton" style="height:40px;"></div>
+        </div>`;
+      loadCalendar(body);
+    }
+
+    async function loadCalendar(body) {
+      const container = body.querySelector('#calendarItems');
+      try {
+        const events = await window.mavyxBackend.fetchEconomicCalendar();
+        if (!events || events.length === 0) {
+          container.innerHTML = '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">No upcoming events found.</div>';
+          return;
+        }
+        container.innerHTML = events.map(ev => {
+          const impactColor = ev.impact === 'high' ? 'var(--red)' : ev.impact === 'medium' ? 'var(--orange)' : 'var(--gray)';
+          const impactBg = ev.impact === 'high' ? 'var(--red-dim)' : ev.impact === 'medium' ? 'var(--orange-dim)' : 'rgba(139,141,147,.15)';
+          const d = ev.date ? new Date(ev.date) : new Date();
+          const dateStr = d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const timeStr = d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+          return `<div class="notif-item">
+            <div class="notif-cat" style="background:${impactBg};color:${impactColor};font-size:9px;">${ev.impact === 'high' ? '!!!' : ev.impact === 'medium' ? '!!' : '!'}</div>
+            <div style="flex:1;">
+              <div class="notif-title">${ev.title || ev.event || 'Event'}</div>
+              <div class="notif-time">${ev.country || 'USD'} · ${dateStr} ${timeStr}</div>
+            </div>
+            <div style="text-align:right;font-size:10px;">
+              <div style="color:var(--text-soft);">Fcst: <b>${ev.forecast || '—'}</b></div>
+              <div style="color:var(--text-mute);">Prev: ${ev.previous || '—'}</div>
+            </div>
+          </div>`;
+        }).join('');
+      } catch {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">Could not load calendar events.</div>';
+      }
+    }
+
+    function buildDashboardContent(body) {
+      body.style.padding = '16px';
+      body.style.overflow = 'auto';
+      const stats = window.mavyxBackend.computeAnalytics();
+      const journal = window.mavyxBackend.getJournalEntries();
+      const recent = journal.slice(0, 5);
+      body.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">Intelligence Dashboard</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div class="tc-card"><div class="tc-label">Active Pair</div><div class="tc-value entry" style="font-size:12px;">EUR/USD</div></div>
+          <div class="tc-card"><div class="tc-label">AI Status</div><div class="tc-value rr" style="font-size:12px;">Online</div></div>
+          <div class="tc-card"><div class="tc-label">Agents</div><div class="tc-value target" style="font-size:12px;">14/14</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <div class="tc-card"><div class="tc-label">Total Trades</div><div class="tc-value entry">${stats.totalTrades}</div></div>
+          <div class="tc-card"><div class="tc-label">Win Rate</div><div class="tc-value rr">${stats.winRate}%</div></div>
+        </div>
+        <div class="section-label" style="margin-bottom:8px;">Quick Actions</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+          <button class="settings-save" id="dashAnalyzeBtn" style="font-size:11px;padding:10px;">⚡ Run Analysis</button>
+          <button class="settings-save" id="dashJournalBtn" style="font-size:11px;padding:10px;background:var(--bg-panel);color:var(--text-soft);border:1px solid var(--border);">📓 New Journal Entry</button>
+        </div>
+        <div class="section-label" style="margin-bottom:8px;">Recent Activity</div>
+        ${recent.length > 0 ? recent.map(e => `
+          <div class="notif-item" style="margin-bottom:6px;">
+            <div class="notif-cat ${(e.pnl||0) >= 0 ? 'market' : 'risk'}" style="font-size:9px;">${e.direction === 'sell' ? 'S' : 'B'}</div>
+            <div style="flex:1;">
+              <div class="notif-title">${e.symbol || 'EUR/USD'} · ${e.direction || 'buy'}</div>
+              <div class="notif-time">${new Date(e.createdAt).toLocaleDateString()}</div>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:${(e.pnl||0) >= 0 ? 'var(--green)' : 'var(--red)'};">${(e.pnl||0) >= 0 ? '+' : ''}${e.pnl || 0}p</div>
+          </div>
+        `).join('') : '<div style="text-align:center;color:var(--text-mute);padding:16px;font-size:12px;">No recent activity. Run an analysis or log a trade.</div>'}`;
+      body.querySelector('#dashAnalyzeBtn').addEventListener('click', () => {
+        document.getElementById('analyzeBtn').click();
+        showToast('Running 14-agent analysis…');
+      });
+      body.querySelector('#dashJournalBtn').addEventListener('click', () => {
+        window.openAdHocPanel && window.openAdHocPanel('Trade Journal');
+      });
+    }
+
     window.openAdHocPanel = function(name){
       if(openAdHoc[name]){
         window.__dock.bringToFront(openAdHoc[name]);
         return;
       }
-      const icon = AD_HOC_ICONS[name] || '<rect x="3" y="3" width="18" height="18" rx="2"/>';
-      const { wrap, body } = window.__dock.makeFloatingChrome(name, name, {width:420, height:340});
-      body.style.padding = '0';
-      body.innerHTML = `<div class="tv-mount" style="height:100%;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${icon}</svg>
-          <div class="tv-title">${name}</div>
-          <div class="tv-sub">This view is ready to be wired up to real data. Drag its header to reposition, resize from the corner, or dock it anywhere using the Window menu.</div>
-        </div>`;
+      const sizeMap = {
+        'Dashboard': {width:440, height:520},
+        'Markets': {width:420, height:560},
+        'Trade Journal': {width:460, height:520},
+        'Analytics': {width:440, height:480},
+        'Watchlist': {width:400, height:480},
+        'Economic Calendar': {width:440, height:520},
+      };
+      const opts = sizeMap[name] || {width:420, height:340};
+      const { wrap, body } = window.__dock.makeFloatingChrome(name, name, opts);
+      
+      // Render real content based on view name
+      switch(name) {
+        case 'Dashboard': buildDashboardContent(body); break;
+        case 'Markets': buildMarketsContent(body); break;
+        case 'Trade Journal': buildTradeJournalContent(body); break;
+        case 'Analytics': buildAnalyticsContent(body); break;
+        case 'Watchlist': buildWatchlistContent(body); break;
+        case 'Economic Calendar': buildCalendarContent(body); break;
+        default:
+          body.style.padding = '0';
+          body.innerHTML = `<div class="tv-mount" style="height:100%;"><div class="tv-title">${name}</div></div>`;
+      }
+      
       wrap.querySelector('.dock-btn').outerHTML = `<button class="ph-btn close-btn" title="Close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>`;
@@ -1996,10 +2438,19 @@
 
     function renderSettingsPane(pane, tab){
       if(tab === 'profile'){
+        const currentTz = window.mavyxBackend ? window.mavyxBackend.getUserTimezone() : Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const commonTimezones = ['America/New_York','America/Chicago','America/Los_Angeles','Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Shanghai','Asia/Dubai','Australia/Sydney','Pacific/Auckland','Africa/Lagos','Etc/UTC'];
         pane.innerHTML = `
           <div class="settings-field">
             <label>Display Name</label>
             <input type="text" id="settingsNameInput" value="${profileName}">
+          </div>
+          <div class="settings-field">
+            <label>Timezone</label>
+            <select id="settingsTimezone" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:9px 12px;font-size:12.5px;color:var(--text);font-family:inherit;width:100%;">
+              ${commonTimezones.map(tz => `<option value="${tz}" ${tz === currentTz ? 'selected' : ''}>${tz.replace(/_/g, ' ')}</option>`).join('')}
+              <option value="${currentTz}" ${!commonTimezones.includes(currentTz) ? 'selected' : ''}>${currentTz.replace(/_/g, ' ')} (detected)</option>
+            </select>
           </div>
           <div class="settings-field">
             <label>Role</label>
@@ -2009,7 +2460,10 @@
         `;
         pane.querySelector('#settingsSaveProfile').addEventListener('click', ()=>{
           const val = pane.querySelector('#settingsNameInput').value.trim();
-          if(val){ applyProfileName(val); showToast('Profile updated'); }
+          const tz = pane.querySelector('#settingsTimezone').value;
+          if(val){ applyProfileName(val); }
+          if(tz && window.mavyxBackend){ window.mavyxBackend.setTimezone(tz); }
+          showToast('Profile updated');
         });
       } else if(tab === 'integrations'){
         pane.innerHTML = `
@@ -2108,58 +2562,99 @@
   })();
 
 
-  // Generate a simple procedural candlestick chart with overlay zones (visual placeholder for the Intelligence Chart)
-  (function drawChart(){
-    const svg = document.getElementById('chartSvg');
-    const W = 900, H = 420, PAD = 20;
-    const n = 60;
-    let price = 220;
-    const candles = [];
-    for(let i=0;i<n;i++){
-      const open = price;
-      const drift = (Math.sin(i/7)*4) + (Math.random()-0.5)*10;
-      const close = open + drift;
-      const high = Math.max(open,close) + Math.random()*6;
-      const low = Math.min(open,close) - Math.random()*6;
-      candles.push({open,close,high,low});
-      price = close;
+  // ---- Live TradingView Chart ----
+  let tvWidget = null;
+  let currentSymbol = 'FX:EURUSD';
+  const tfMap = { '1m':'1', '5m':'5', '15m':'15', '30m':'30', '1H':'60', '4H':'240', 'Daily':'D', 'Weekly':'W', 'Monthly':'M' };
+  
+  function initTradingView(symbol, interval) {
+    const container = document.getElementById('tradingview_chart');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (typeof TradingView === 'undefined') {
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);font-size:12px;">Loading TradingView…</div>';
+      return;
     }
-    const allVals = candles.flatMap(c=>[c.high,c.low]);
-    const min = Math.min(...allVals), max = Math.max(...allVals);
-    const yScale = v => H - PAD - ((v-min)/(max-min))*(H-PAD*2);
-    const cw = (W-PAD*2)/n;
-
-    let svgContent = '';
-    // grid
-    for(let g=0; g<=4; g++){
-      const y = PAD + g*(H-PAD*2)/4;
-      svgContent += `<line class="grid-line" x1="0" y1="${y}" x2="${W}" y2="${y}"/>`;
+    
+    try {
+      tvWidget = new TradingView.widget({
+        container_id: 'tradingview_chart',
+        autosize: true,
+        symbol: symbol || currentSymbol,
+        interval: interval || '15',
+        timezone: window.mavyxBackend ? window.mavyxBackend.getUserTimezone() : 'Etc/UTC',
+        theme: 'dark',
+        style: '1',
+        locale: 'en',
+        toolbar_bg: '#0a0a0a',
+        enable_publishing: false,
+        hide_top_toolbar: false,
+        hide_legend: false,
+        save_image: false,
+        backgroundColor: '#000000',
+        gridColor: '#1e1e1e',
+        studies: [],
+        show_popup_button: false,
+        width: '100%',
+        height: '100%',
+      });
+    } catch(e) {
+      container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);font-size:12px;">TradingView widget failed to load. Check connection.</div>';
     }
-    // session band + zones (illustrative)
-    svgContent += `<rect class="session-band" x="${PAD}" y="0" width="140" height="${H}"/>`;
-    svgContent += `<rect class="ob-zone" x="${W-220}" y="${yScale(max)+10}" width="200" height="60"/>`;
-    svgContent += `<rect class="fvg-zone" x="${W-380}" y="${yScale((min+max)/2)}" width="150" height="40"/>`;
+  }
+  
+  // Map pair name to TradingView symbol format
+  function pairToTVSymbol(pair) {
+    const clean = pair.replace('/', '');
+    if (clean.startsWith('XAU')) return 'TVC:GOLD';
+    if (clean.startsWith('XAG')) return 'TVC:SILVER';
+    if (clean.startsWith('BTC')) return 'BINANCE:BTCUSDT';
+    if (clean.startsWith('ETH')) return 'BINANCE:ETHUSDT';
+    return 'FX:' + clean;
+  }
 
-    candles.forEach((c,i)=>{
-      const x = PAD + i*cw + cw/2;
-      const up = c.close >= c.open;
-      svgContent += `<line class="wick ${up?'wick-up':'wick-down'}" x1="${x}" y1="${yScale(c.high)}" x2="${x}" y2="${yScale(c.low)}"/>`;
-      const bodyTop = yScale(Math.max(c.open,c.close));
-      const bodyH = Math.max(2, Math.abs(yScale(c.open)-yScale(c.close)));
-      svgContent += `<rect class="${up?'candle-up':'candle-down'}" x="${x-cw*0.32}" y="${bodyTop}" width="${cw*0.64}" height="${bodyH}" rx="1"/>`;
+  // Initialize chart on load
+  setTimeout(() => initTradingView(currentSymbol, '15'), 500);
+  
+  // Update chart when timeframe changes
+  document.querySelectorAll('.tf-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tf-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const tf = tfMap[btn.textContent.trim()] || '15';
+      if (tvWidget && tvWidget.activeChart) {
+        try { tvWidget.activeChart().setResolution(tf); } catch {}
+      } else {
+        initTradingView(currentSymbol, tf);
+      }
+      showToast('Timeframe set to ' + btn.textContent);
     });
+  });
+  
+  // Update chart symbol when pair changes in topbar
+  document.querySelector('.tb-pair')?.addEventListener('click', () => {
+    const sym = prompt('Enter symbol (e.g. GBP/USD, XAU/USD):', 'EUR/USD');
+    if (sym) {
+      currentSymbol = pairToTVSymbol(sym);
+      document.querySelector('.tb-pair .sym').textContent = sym.toUpperCase();
+      initTradingView(currentSymbol);
+      showToast('Chart switched to ' + sym.toUpperCase());
+    }
+  });
 
-    // faux structure overlay line
-    let path = 'M ';
-    candles.forEach((c,i)=>{
-      const x = PAD + i*cw + cw/2;
-      const y = yScale((c.high+c.low)/2 + Math.sin(i/5)*3);
-      path += `${x} ${y} L `;
-    });
-    svgContent += `<path class="overlay-line" d="${path.slice(0,-3)}"/>`;
-
-    svg.innerHTML = svgContent;
-  })();
+  // ---- Live clock with timezone ----
+  function tick(){
+    const el = document.getElementById('clock');
+    const tz = window.mavyxBackend ? window.mavyxBackend.getUserTimezone() : Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const d = new Date();
+    try {
+      el.textContent = d.toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + tz.split('/').pop().replace('_', ' ');
+    } catch {
+      el.textContent = d.toISOString().substr(11,8) + ' UTC';
+    }
+  }
+  setInterval(tick, 1000); tick();
 </script>
 
 </body>
