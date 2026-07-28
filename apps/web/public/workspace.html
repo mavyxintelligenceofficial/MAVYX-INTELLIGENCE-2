@@ -1203,7 +1203,8 @@
         }
         
         // === Update Evidence Grid ===
-        const agents = result.agent_results || result.agents || [];
+        // Backend returns: full_agent_outputs (array of agent dicts) and agent_breakdown (summary array)
+        const agents = result.full_agent_outputs || result.agent_breakdown || result.agent_results || result.agents || [];
         const grid = document.getElementById('evidenceGrid');
         const countEl = document.getElementById('evidenceAgentCount');
         if (grid && agents.length > 0) {
@@ -1211,11 +1212,18 @@
           grid.innerHTML = agents.map(a => {
             const confVal = a.confidence || 0;
             const status = confVal >= 70 ? 'validated' : confVal >= 45 ? 'uncertain' : 'conflict';
-            return `<div class="ev-card" data-agent="${a.agent?.substring(0,2) || 'AI'}" data-name="${a.agent || 'Agent'}" data-mission="${(a.mission || '').replace(/"/g, '&quot;')}" data-obs="${(a.observations || '').replace(/"/g, '&quot;')}" data-evi="${(a.evidence || '').replace(/"/g, '&quot;')}" data-contra="${(a.contradictions || '').replace(/"/g, '&quot;')}" data-lim="${(a.limitations || '').replace(/"/g, '&quot;')}" data-conc="${(a.conclusion || '').replace(/"/g, '&quot;')}">
-              <div class="ev-top"><span class="ev-name">${a.agent || 'Agent'}</span><span class="ev-status ${status}"></span></div>
-              <div class="ev-conf">Confidence ${confVal}%</div>
+            const agentName = a.agent_id || a.agent || 'Agent';
+            const summary = a.summary || a.conclusion || '—';
+            const findings = (a.key_findings || []).join('. ');
+            const evidence = (a.evidence || []).join('. ');
+            const limitations = (a.limitations || []).join('. ');
+            const risk = a.risk_assessment || '—';
+            const signal = a.signal || 'neutral';
+            return `<div class="ev-card" data-agent="${agentName.substring(0,2).toUpperCase()}" data-name="${agentName}" data-mission="Signal: ${signal}" data-obs="${summary.replace(/"/g, '&quot;')}" data-evi="${findings.replace(/"/g, '&quot;')}" data-contra="${risk.replace(/"/g, '&quot;')}" data-lim="${limitations.replace(/"/g, '&quot;')}" data-conc="${summary.replace(/"/g, '&quot;')}">
+              <div class="ev-top"><span class="ev-name">${agentName}</span><span class="ev-status ${status}"></span></div>
+              <div class="ev-conf">Confidence ${confVal}% · ${signal}</div>
               <div class="ev-bar"><span style="width:${confVal}%"></span></div>
-              <div class="ev-finding">${(a.conclusion || '—').substring(0, 80)}</div>
+              <div class="ev-finding">${summary.substring(0, 80)}</div>
             </div>`;
           }).join('');
           
@@ -1337,6 +1345,15 @@
   document.getElementById('openSettingsLink').addEventListener('click', ()=>{
     closeAllDropdowns(null);
     window.openSettingsPanel && window.openSettingsPanel('appearance');
+  });
+
+  // Wire up the logout link in the avatar dropdown
+  document.getElementById("logoutLink")?.addEventListener("click", (e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    closeAllDropdowns(null);
+    if (window.mavyxSupabase) { window.mavyxSupabase.signOut(); }
+    else { localStorage.removeItem("mavyx-auth-store"); window.location.href = "/login"; }
   });
 
   // ---- Risk / AI status pills ----
@@ -2581,14 +2598,35 @@
       renderSettingsPane(body.querySelector('#settingsPane'), activeTab);
     }
 
-    function renderSettingsPane(pane, tab){
+    async function renderSettingsPane(pane, tab){
       if(tab === 'profile'){
         const currentTz = window.mavyxBackend ? window.mavyxBackend.getUserTimezone() : Intl.DateTimeFormat().resolvedOptions().timeZone;
         const commonTimezones = ['America/New_York','America/Chicago','America/Los_Angeles','Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Shanghai','Asia/Dubai','Australia/Sydney','Pacific/Auckland','Africa/Lagos','Etc/UTC'];
+        
+        // Load user data from Supabase
+        let userEmail = '';
+        let userName = profileName;
+        if (window.mavyxSupabase) {
+          try {
+            const u = await window.mavyxSupabase.getCurrentUser();
+            if (u) {
+              userEmail = u.email || '';
+              userName = u.user_metadata?.full_name || u.user_metadata?.name || profileName;
+            }
+            const settings = await window.mavyxSupabase.getSettings();
+            if (settings.display_name) userName = settings.display_name;
+            if (settings.timezone) currentTz = settings.timezone;
+          } catch {}
+        }
+        
         pane.innerHTML = `
           <div class="settings-field">
             <label>Display Name</label>
-            <input type="text" id="settingsNameInput" value="${profileName}">
+            <input type="text" id="settingsNameInput" value="${userName}">
+          </div>
+          <div class="settings-field">
+            <label>Email</label>
+            <input type="text" value="${userEmail}" disabled style="opacity:.6;">
           </div>
           <div class="settings-field">
             <label>Timezone</label>
@@ -2597,17 +2635,22 @@
               <option value="${currentTz}" ${!commonTimezones.includes(currentTz) ? 'selected' : ''}>${currentTz.replace(/_/g, ' ')} (detected)</option>
             </select>
           </div>
-          <div class="settings-field">
-            <label>Role</label>
-            <input type="text" value="Discretionary Trader — EUR/USD" disabled style="opacity:.6;">
-          </div>
           <button class="settings-save" id="settingsSaveProfile">Save Profile</button>
         `;
-        pane.querySelector('#settingsSaveProfile').addEventListener('click', ()=>{
+        pane.querySelector('#settingsSaveProfile').addEventListener('click', async ()=>{
           const val = pane.querySelector('#settingsNameInput').value.trim();
           const tz = pane.querySelector('#settingsTimezone').value;
           if(val){ applyProfileName(val); }
           if(tz && window.mavyxBackend){ window.mavyxBackend.setTimezone(tz); }
+          // Save to Supabase
+          if (window.mavyxSupabase) {
+            try {
+              await window.mavyxSupabase.updateSettings({
+                display_name: val || profileName,
+                timezone: tz,
+              });
+            } catch {}
+          }
           showToast('Profile updated');
         });
       } else if(tab === 'integrations'){
@@ -2959,17 +3002,53 @@
       }
     }
     
-    // --- Auth modal handlers ---
-    document.getElementById('authGoogle')?.addEventListener('click', () => sb.signInWithOAuth('google'));
-    document.getElementById('authMicrosoft')?.addEventListener('click', () => sb.signInWithOAuth('azure'));
-    document.getElementById('authApple')?.addEventListener('click', () => sb.signInWithOAuth('apple'));
+    // --- Auth modal handlers with proper error handling ---
+    document.getElementById('authGoogle')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const errEl = document.getElementById('authError');
+      try {
+        errEl.style.display = 'none';
+        await sb.signInWithOAuth('google');
+      } catch (err) {
+        errEl.textContent = 'Google sign-in failed: ' + (err.message || 'Check Supabase settings');
+        errEl.style.display = 'block';
+        errEl.style.color = 'var(--red)';
+      }
+    });
+    document.getElementById('authMicrosoft')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const errEl = document.getElementById('authError');
+      try {
+        errEl.style.display = 'none';
+        await sb.signInWithOAuth('azure');
+      } catch (err) {
+        errEl.textContent = 'Microsoft sign-in failed: ' + (err.message || 'Check Supabase settings');
+        errEl.style.display = 'block';
+        errEl.style.color = 'var(--red)';
+      }
+    });
+    document.getElementById('authApple')?.addEventListener('click', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const errEl = document.getElementById('authError');
+      try {
+        errEl.style.display = 'none';
+        await sb.signInWithOAuth('apple');
+      } catch (err) {
+        errEl.textContent = 'Apple sign-in failed: ' + (err.message || 'Check Supabase settings');
+        errEl.style.display = 'block';
+        errEl.style.color = 'var(--red)';
+      }
+    });
     
     document.getElementById('authEmailBtn')?.addEventListener('click', async () => {
       const email = document.getElementById('authEmail')?.value?.trim();
       const password = document.getElementById('authPassword')?.value;
       const errEl = document.getElementById('authError');
-      if (!email || !password) { errEl.textContent = 'Email and password required'; errEl.style.display = 'block'; return; }
-      if (password.length < 12) { errEl.textContent = 'Password must be at least 12 characters'; errEl.style.display = 'block'; return; }
+      if (!email || !password) { errEl.textContent = 'Email and password required'; errEl.style.display = 'block'; errEl.style.color = 'var(--red)'; return; }
+      if (password.length < 12) { errEl.textContent = 'Password must be at least 12 characters'; errEl.style.display = 'block'; errEl.style.color = 'var(--red)'; return; }
       try {
         errEl.style.display = 'none';
         await sb.signInWithEmail(email, password);
@@ -2980,9 +3059,17 @@
         // If sign-in fails, try sign-up
         try {
           await sb.signUpWithEmail(email, password);
-          errEl.textContent = 'Check your email to confirm your account.';
-          errEl.style.display = 'block';
-          errEl.style.color = 'var(--green)';
+          // After sign-up, try to sign in immediately
+          try {
+            await sb.signInWithEmail(email, password);
+            document.getElementById('authModal').style.display = 'none';
+            showToast('Account created and signed in');
+            location.reload();
+          } catch {
+            errEl.textContent = 'Account created! Check your email to verify, then sign in.';
+            errEl.style.display = 'block';
+            errEl.style.color = 'var(--green)';
+          }
         } catch (e2) {
           errEl.textContent = e2.message || 'Authentication failed';
           errEl.style.display = 'block';
@@ -2993,6 +3080,29 @@
     
     // --- Load user data from Supabase ---
     if (user) {
+      // Update avatar with user's initials
+      const userName = user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'User';
+      const initials = userName.split(/[\s@.]+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || 'U';
+      document.getElementById('avatarBtn').textContent = initials;
+      document.querySelectorAll('.chat-avatar.user').forEach(el => el.textContent = initials);
+      
+      // Update dropdown title
+      const dropdownTitle = document.querySelector('#avatarDropdown .dropdown-title');
+      if (dropdownTitle) dropdownTitle.textContent = userName;
+      
+      // Load settings from Supabase
+      try {
+        const settings = await sb.getSettings();
+        if (settings.display_name) {
+          profileName = settings.display_name;
+          const si = profileName.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]?.toUpperCase()).join('') || 'U';
+          document.getElementById('avatarBtn').textContent = si;
+        }
+        if (settings.theme) applyTheme(settings.theme);
+        if (settings.accent) applyAccent(settings.accent);
+        if (settings.timezone) window.mavyxBackend?.setTimezone(settings.timezone);
+      } catch {}
+      
       // Load and display topbar price
       try {
         const q = await window.mavyxBackend.fetchQuote('EUR/USD');
