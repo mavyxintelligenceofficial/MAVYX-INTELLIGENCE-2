@@ -1119,6 +1119,9 @@
     const activeTf = document.querySelector('.tf-btn.active');
     const timeframe = activeTf ? activeTf.textContent.trim() : '4H';
     
+    // Auto-switch to Executive Brief tab so user sees the feed
+    activateAiTab('brief');
+    
     // Show Live Activity Feed
     const feedSection = document.getElementById('liveFeedSection');
     const feedRows = document.getElementById('liveFeedRows');
@@ -1128,6 +1131,10 @@
     feedRows.innerHTML = '';
     feedQuorum.style.display = 'none';
     document.getElementById('briefRunPrompt').style.display = 'none';
+    document.getElementById('briefSummary').textContent = 'Analysis in progress — watch agents below…';
+    document.getElementById('briefSummary').style.textAlign = 'center';
+    document.getElementById('briefSummary').style.color = 'var(--gold)';
+    document.getElementById('briefSummary').style.padding = '16px 0';
     
     const agentStatuses = {};
     const AGENT_DISPLAY = {
