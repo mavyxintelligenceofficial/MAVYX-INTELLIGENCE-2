@@ -5,8 +5,8 @@
  * All user data persisted in Supabase. No localStorage for data.
  */
 
-const SUPABASE_URL = 'https://YOUR_PROJECT.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const SUPABASE_URL = 'https://ratjbypgubystowwrklz.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhdGpieXBndWJ5c3Rvd3dya2x6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUyNTczNzksImV4cCI6MjEwMDgzMzM3OX0.emrEoC8tWcwxcl6lvI6fmCvnzXU64A1XOJO1xq44HVw';
 
 let _supabase = null;
 let _user = null;
