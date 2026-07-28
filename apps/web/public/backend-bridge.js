@@ -294,6 +294,125 @@ function setTimezone(tz) {
   } catch {}
 }
 
+// ─── Dock Data (Bottom Bar) ─────────────────────────────────────
+// Cached dock quotes to avoid hammering the API
+let _dockCache = {};
+let _dockCacheTime = 0;
+const DOCK_CACHE_TTL = 60000; // 60 seconds
+
+async function fetchDockQuotes() {
+  const now = Date.now();
+  if (now - _dockCacheTime < DOCK_CACHE_TTL && Object.keys(_dockCache).length > 0) {
+    return _dockCache;
+  }
+  
+  const symbols = {
+    dxy: 'DXY',
+    spx: 'SPX',
+    gold: 'XAU/USD',
+    oil: 'WTI',
+    btc: 'BTC/USD',
+  };
+  
+  const results = {};
+  
+  for (const [key, sym] of Object.entries(symbols)) {
+    try {
+      const q = await fetchQuote(sym);
+      results[key] = {
+        price: q.price || q.close || q.ask || null,
+        change: q.change || q.net_change || 0,
+        changePercent: q.change_percent || q.percent_change || 0,
+        ok: true,
+      };
+    } catch {
+      results[key] = { price: null, change: 0, changePercent: 0, ok: false };
+    }
+    // Small delay between requests for rate limiting
+    await new Promise(r => setTimeout(r, 500));
+  }
+  
+  _dockCache = results;
+  _dockCacheTime = now;
+  return results;
+}
+
+// Measure real latency to gateway
+async function measureLatency() {
+  const start = performance.now();
+  try {
+    await fetch(API_BASE + '/health', { method: 'GET' });
+    return Math.round(performance.now() - start);
+  } catch {
+    return -1; // unreachable
+  }
+}
+
+// Get next upcoming economic event
+function getNextCalendarEvent() {
+  try {
+    const events = getFallbackCalendarEvents();
+    const now = new Date();
+    // Sort by date and find the next one
+    const upcoming = events
+      .filter(e => new Date(e.date) > now)
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    if (upcoming.length > 0) {
+      const next = upcoming[0];
+      const diff = new Date(next.date).getTime() - now.getTime();
+      const hours = Math.floor(diff / 3600000);
+      const mins = Math.floor((diff % 3600000) / 60000);
+      const secs = Math.floor((diff % 60000) / 1000);
+      return {
+        title: next.title,
+        country: next.country,
+        impact: next.impact,
+        countdown: `${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`,
+        timestamp: new Date(next.date).getTime(),
+      };
+    }
+  } catch {}
+  return null;
+}
+
+// Update countdown every second (returns the interval ID)
+function startNextEventCountdown(eventTimestamp, onUpdate) {
+  return setInterval(() => {
+    const now = Date.now();
+    const diff = eventTimestamp - now;
+    if (diff <= 0) {
+      onUpdate('NOW');
+      return;
+    }
+    const hours = Math.floor(diff / 3600000);
+    const mins = Math.floor((diff % 3600000) / 60000);
+    const secs = Math.floor((diff % 60000) / 1000);
+    onUpdate(`${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`);
+  }, 1000);
+}
+
+// Get current trading session based on UTC time
+function getCurrentSession() {
+  const hour = new Date().getUTCHours();
+  if (hour >= 0 && hour < 7) return { name: 'Asian Session', color: 'var(--blue)' };
+  if (hour >= 7 && hour < 16) return { name: 'London Session', color: 'var(--green)' };
+  if (hour >= 13 && hour < 21) return { name: 'New York Session', color: 'var(--gold)' };
+  return { name: 'Off-Hours', color: 'var(--gray)' };
+}
+
+// Check if forex market is open (closed Sat-Sun roughly)
+function isMarketOpen() {
+  const now = new Date();
+  const day = now.getUTCDay(); // 0=Sun, 6=Sat
+  const hour = now.getUTCHours();
+  // Forex closes Fri ~22:00 UTC, opens Sun ~22:00 UTC
+  if (day === 6) return false; // Saturday
+  if (day === 0 && hour < 22) return false; // Sunday before open
+  if (day === 5 && hour >= 22) return false; // Friday after close
+  return true;
+}
+
 // ─── Make functions available globally ──────────────────────────
 window.mavyxBackend = {
   // Auth
@@ -335,6 +454,14 @@ window.mavyxBackend = {
   // Health
   getSystemHealth,
   getAiHealth,
+  
+  // Dock Data
+  fetchDockQuotes,
+  measureLatency,
+  getNextCalendarEvent,
+  startNextEventCountdown,
+  getCurrentSession,
+  isMarketOpen,
   
   // Timezone
   getUserTimezone,

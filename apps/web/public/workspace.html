@@ -1063,15 +1063,15 @@
 
   <!-- ============ 5.20 BOTTOM INTELLIGENCE DOCK ============ -->
   <footer class="dock">
-    <div class="dock-item up">DXY <b>▲ 104.21</b></div>
-    <div class="dock-item down">SPX <b>▼ 5,412</b></div>
-    <div class="dock-item up">Gold <b>▲ 2,401</b></div>
-    <div class="dock-item">10Y Yield <b>4.28%</b></div>
-    <div class="dock-item">Next Event: <b>US CPI — 02:14:09</b></div>
+    <div class="dock-item" id="dockDxy">DXY <b>—</b></div>
+    <div class="dock-item" id="dockSpx">SPX <b>—</b></div>
+    <div class="dock-item" id="dockGold">Gold <b>—</b></div>
+    <div class="dock-item" id="dockYield">10Y Yield <b>—</b></div>
+    <div class="dock-item" id="dockNextEvent">Next Event: <b>Loading…</b></div>
     <div class="dock-spacer"></div>
-    <div class="dock-item">Latency <b>18ms</b></div>
-    <div class="dock-item">Agents Online <b>8/8</b></div>
-    <div class="dock-item"><span class="dot" style="display:inline-block;"></span> All Systems Nominal</div>
+    <div class="dock-item" id="dockLatency">Latency <b>—</b></div>
+    <div class="dock-item" id="dockAgents">Agents Online <b>—</b></div>
+    <div class="dock-item" id="dockStatus"><span class="dot" style="display:inline-block;"></span> Checking…</div>
   </footer>
 
 </div>
@@ -2616,6 +2616,130 @@
 
   // Initialize chart on load
   setTimeout(() => initTradingView(currentSymbol, '15'), 500);
+
+  // ─── Bottom Dock: Live Data Updates ─────────────────────────────
+  let _eventCountdownInterval = null;
+  
+  async function updateDock() {
+    const mb = window.mavyxBackend;
+    if (!mb) return;
+    
+    // --- Market prices (DXY, SPX, Gold) ---
+    try {
+      const quotes = await mb.fetchDockQuotes();
+      
+      const dxyEl = document.getElementById('dockDxy');
+      if (dxyEl && quotes.dxy) {
+        const p = quotes.dxy.price;
+        const c = parseFloat(quotes.dxy.changePercent) || 0;
+        const up = c >= 0;
+        dxyEl.className = 'dock-item ' + (up ? 'up' : 'down');
+        dxyEl.innerHTML = `DXY <b>${up ? '▲' : '▼'} ${p ? parseFloat(p).toFixed(2) : '—'}</b>`;
+      }
+      
+      const spxEl = document.getElementById('dockSpx');
+      if (spxEl && quotes.spx) {
+        const p = quotes.spx.price;
+        const c = parseFloat(quotes.spx.changePercent) || 0;
+        const up = c >= 0;
+        spxEl.className = 'dock-item ' + (up ? 'up' : 'down');
+        spxEl.innerHTML = `SPX <b>${up ? '▲' : '▼'} ${p ? Number(p).toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}</b>`;
+      }
+      
+      const goldEl = document.getElementById('dockGold');
+      if (goldEl && quotes.gold) {
+        const p = quotes.gold.price;
+        const c = parseFloat(quotes.gold.changePercent) || 0;
+        const up = c >= 0;
+        goldEl.className = 'dock-item ' + (up ? 'up' : 'down');
+        goldEl.innerHTML = `Gold <b>${up ? '▲' : '▼'} ${p ? Number(p).toLocaleString(undefined, {maximumFractionDigits: 0}) : '—'}</b>`;
+      }
+    } catch {}
+    
+    // --- 10Y Yield (from DXY quote or fallback) ---
+    const yieldEl = document.getElementById('dockYield');
+    if (yieldEl) {
+      // Try to fetch US10Y from Twelve Data
+      try {
+        const yq = await mb.fetchQuote('US10Y');
+        if (yq && yq.yield) {
+          yieldEl.innerHTML = `10Y Yield <b>${parseFloat(yq.yield).toFixed(2)}%</b>`;
+        } else if (yq && yq.price) {
+          yieldEl.innerHTML = `10Y Yield <b>${parseFloat(yq.price).toFixed(2)}%</b>`;
+        }
+      } catch {
+        yieldEl.innerHTML = `10Y Yield <b>—</b>`;
+      }
+    }
+    
+    // --- Next economic event with live countdown ---
+    const nextEventEl = document.getElementById('dockNextEvent');
+    if (nextEventEl) {
+      const nextEvent = mb.getNextCalendarEvent();
+      if (nextEvent) {
+        nextEventEl.innerHTML = `Next Event: <b>${nextEvent.country} ${nextEvent.title} — <span id="eventCountdown">${nextEvent.countdown}</span></b>`;
+        
+        // Start live countdown
+        if (_eventCountdownInterval) clearInterval(_eventCountdownInterval);
+        const cdEl = document.getElementById('eventCountdown');
+        if (cdEl) {
+          _eventCountdownInterval = mb.startNextEventCountdown(nextEvent.timestamp, (cd) => {
+            if (cdEl) cdEl.textContent = cd;
+          });
+        }
+      }
+    }
+    
+    // --- Latency ---
+    const latencyEl = document.getElementById('dockLatency');
+    if (latencyEl) {
+      const ms = await mb.measureLatency();
+      if (ms < 0) {
+        latencyEl.innerHTML = `Latency <b style="color:var(--red);">Unreachable</b>`;
+      } else {
+        latencyEl.innerHTML = `Latency <b>${ms}ms</b>`;
+      }
+    }
+    
+    // --- Agent / System Health ---
+    const agentsEl = document.getElementById('dockAgents');
+    const statusEl = document.getElementById('dockStatus');
+    
+    try {
+      const health = await mb.getAiHealth();
+      if (health && health.status === 'ok') {
+        if (agentsEl) agentsEl.innerHTML = `Agents Online <b style="color:var(--green);">✓ ${health.ai_provider === 'zai' ? '14/14' : 'Online'}</b>`;
+        if (statusEl) statusEl.innerHTML = `<span class="dot" style="display:inline-block;"></span> All Systems Nominal`;
+      } else {
+        if (agentsEl) agentsEl.innerHTML = `Agents Online <b style="color:var(--orange);">Partial</b>`;
+        if (statusEl) statusEl.innerHTML = `<span class="dot amber" style="display:inline-block;"></span> Degraded`;
+      }
+    } catch {
+      if (agentsEl) agentsEl.innerHTML = `Agents Online <b style="color:var(--red);">Offline</b>`;
+      if (statusEl) statusEl.innerHTML = `<span class="dot red" style="display:inline-block;"></span> Service Down`;
+    }
+    
+    // --- Update session indicator in topbar ---
+    const session = mb.getCurrentSession();
+    const sessionChips = document.querySelectorAll('.tb-chip');
+    if (sessionChips[0]) {
+      sessionChips[0].innerHTML = `<span class="dot" style="background:${session.color};box-shadow:0 0 6px ${session.color};"></span> ${session.name}`;
+    }
+    
+    // --- Market open/closed ---
+    const marketOpen = mb.isMarketOpen();
+    if (sessionChips[3]) {
+      if (marketOpen) {
+        sessionChips[3].innerHTML = `<span class="dot amber"></span> Market Open`;
+      } else {
+        sessionChips[3].innerHTML = `<span class="dot red"></span> Market Closed`;
+      }
+    }
+  }
+  
+  // Initial dock update + periodic refresh every 60 seconds
+  setTimeout(updateDock, 1000);
+  setInterval(updateDock, 60000);
   
   // Update chart when timeframe changes
   document.querySelectorAll('.tf-btn').forEach(btn => {
