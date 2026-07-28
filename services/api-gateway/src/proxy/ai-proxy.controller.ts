@@ -36,6 +36,21 @@ export class AiProxyController {
     }
   }
 
+  @Post('analyze/stream')
+  async analyzeStream(@Body() body: any, @Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/analyze/stream`, body, {
+          headers: { Authorization: request.headers.authorization || '' },
+          responseType: 'stream',
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   @Post('assistant')
   async assistant(@Body() body: any, @Req() request: Request) {
     try {

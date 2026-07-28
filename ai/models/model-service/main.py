@@ -18,8 +18,13 @@ if _ai_root not in sys.path:
     sys.path.insert(0, _ai_root)
 
 from typing import Optional
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
+import asyncio
+import json
+import queue
+import threading
 
 from auth import require_auth
 from model_provider import ModelProvider
@@ -144,85 +149,125 @@ async def generate(body: GenerateRequest, _user: dict = Depends(require_auth)):
 @app.post("/analyze")
 async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
     """Run the full AI analysis pipeline for a symbol.
-
-    This endpoint:
-    1. Fetches market data from market-service
-    2. Runs all specialist agents in parallel
-    3. Synthesizes results through the Executive Decision Engine
-    4. Saves the result for history (Vol. IV §3.12: Decision Logging)
-    5. Returns a complete recommendation
-
-    Per Volume IV §2.8: AI Task Lifecycle (12 stages).
+    
+    Uses the rebuilt 12-agent system (v2) with:
+    - Sequential execution with rate limiting
+    - Quorum gate (7/10 minimum)
+    - Schema validation on every response
+    - Output caching
     """
-    from orchestration.orchestrator import AIOrchestrator
-    from agents.specialists.technical_analysis import TechnicalAnalysisAgent
-    from agents.specialists.market_structure import MarketStructureAgent
-    from agents.specialists.sentiment import SentimentAgent
-    from agents.specialists.risk_assessment import RiskAssessmentAgent
-    from agents.specialists.fundamentals import FundamentalsAgent
-    from agents.specialists.market_behavior import MarketBehaviorAgent
-    from agents.specialists.recommendation import RecommendationAgent
-    from agents.specialists.liquidity import LiquidityAgent
-    from agents.specialists.historical import HistoricalAgent
-    from agents.specialists.psychology import PsychologyAgent
-    from agents.specialists.devils_advocate import DevilsAdvocateAgent
-    from agents.specialists.trend_analysis import TrendAnalysisAgent
-    from agents.specialists.volatility import VolatilityAgent
-    from agents.specialists.session_analysis import SessionAnalysisAgent
+    from orchestration.orchestrator_v2 import AIOrchestratorV2
     from market_data_fetcher import fetch_market_data
     from analysis_store import AnalysisStore
-    from memory.memory_manager import MemoryManager
-    from knowledge.knowledge_base import KnowledgeBase
-
-    # Per MEIDS Chapter 3: 14 specialist agents (expanded from 11)
-    agents = [
-        TechnicalAnalysisAgent(),
-        TrendAnalysisAgent(),
-        VolatilityAgent(),
-        MarketStructureAgent(),
-        FundamentalsAgent(),
-        SentimentAgent(),
-        LiquidityAgent(),
-        HistoricalAgent(),
-        RiskAssessmentAgent(),
-        PsychologyAgent(),
-        DevilsAdvocateAgent(),
-        SessionAnalysisAgent(),
-        MarketBehaviorAgent(),
-        RecommendationAgent(),
-    ]
-
-    # Initialize Phase 5 systems (Vol. IV §4.4-4.5)
-    memory_manager = MemoryManager(store=AnalysisStore())
-    knowledge_base = KnowledgeBase()
-
-    orchestrator = AIOrchestrator(
-        provider=_provider,
-        agents=agents,
-        market_fetcher=fetch_market_data,
-        memory_manager=memory_manager,
-        knowledge_base=knowledge_base,
-    )
-
+    
+    try:
+        market_data = await fetch_market_data(body.symbol, body.timeframe)
+    except Exception:
+        market_data = {"candles": []}
+    
+    orchestrator = AIOrchestratorV2(provider=_provider)
+    
     try:
         result = await orchestrator.analyze(
             symbol=body.symbol,
             timeframe=body.timeframe,
+            market_data=market_data,
             model=body.model,
         )
-
-        # Save to analysis history (Vol. IV §3.12: Decision Logging)
+        
         user_id = user.get("sub", "unknown")
         store = AnalysisStore()
         analysis_id = store.save(user_id, result)
         if analysis_id:
             result["analysis_id"] = analysis_id
-
+        
         return result
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(exc)}")
+
+
+# ─── Live Agent Activity Feed (SSE) ────────────────────────────
+
+_active_feeds: dict = {}
+_feed_lock = threading.Lock()
+
+
+@app.post("/analyze/stream")
+async def analyze_stream(body: AnalyzeRequest, user: dict = Depends(require_auth)):
+    """Run analysis with SSE for Live Activity Feed (Section 8)."""
+    from orchestration.orchestrator_v2 import AIOrchestratorV2
+    from market_data_fetcher import fetch_market_data
+    from analysis_store import AnalysisStore
+    
+    feed_id = f"{user.get('sub', 'anon')}_{body.symbol}_{int(time.time())}"
+    event_queue = queue.Queue()
+    
+    with _feed_lock:
+        _active_feeds[feed_id] = event_queue
+    
+    def status_callback(status):
+        try:
+            event_queue.put({
+                "event": "agent_status",
+                "agent": status.agent,
+                "status": status.status,
+                "timestamp": status.timestamp,
+                "duration_ms": status.duration_ms,
+                "output_preview": status.output_preview,
+                "error": status.error,
+            })
+        except Exception:
+            pass
+    
+    async def run_analysis():
+        try:
+            market_data = await fetch_market_data(body.symbol, body.timeframe)
+        except:
+            market_data = {"candles": []}
+        
+        orchestrator = AIOrchestratorV2(provider=_provider)
+        orchestrator.on_status_change(status_callback)
+        
+        try:
+            result = await orchestrator.analyze(
+                symbol=body.symbol,
+                timeframe=body.timeframe,
+                market_data=market_data,
+                model=body.model,
+            )
+            user_id = user.get("sub", "unknown")
+            store = AnalysisStore()
+            analysis_id = store.save(user_id, result)
+            if analysis_id:
+                result["analysis_id"] = analysis_id
+            event_queue.put({"event": "analysis_complete", "result": result})
+        except Exception as e:
+            event_queue.put({"event": "analysis_error", "error": str(e)})
+        finally:
+            event_queue.put({"event": "stream_end"})
+            with _feed_lock:
+                _active_feeds.pop(feed_id, None)
+    
+    asyncio.create_task(run_analysis())
+    
+    async def event_generator():
+        while True:
+            try:
+                event = event_queue.get(timeout=60)
+                if event.get("event") == "stream_end":
+                    yield f"data: {json.dumps(event)}\n\n"
+                    break
+                yield f"data: {json.dumps(event)}\n\n"
+            except queue.Empty:
+                yield f"data: {json.dumps({'event': 'keepalive'})}\n\n"
+    
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.get("/analyze/history")
