@@ -19,6 +19,7 @@ if _ai_root not in sys.path:
 
 from typing import Optional
 from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import asyncio
@@ -35,6 +36,15 @@ from providers.zai_provider import ZaiProvider
 # from providers.gemini_provider import GeminiProvider
 
 app = FastAPI(title="Mavyx Model Service")
+
+# CORS — allow frontend (port 3000) and gateway (port 4000)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Bound to the interface, not the concrete class - swapping/adding
 # providers means changing only this one line, same principle as

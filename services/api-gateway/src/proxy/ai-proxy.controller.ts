@@ -37,39 +37,27 @@ export class AiProxyController {
   }
 
   @Post('analyze/stream')
-  async analyzeStream(@Body() body: any, @Req() request: Request, @Res() response: Response) {
-    const url = `${this.aiServiceUrl}/analyze/stream`;
-    const postData = JSON.stringify(body);
-    const parsedUrl = new URL(url);
-    
-    const proxyReq = http.request({
-      hostname: parsedUrl.hostname,
-      port: parsedUrl.port,
-      path: parsedUrl.pathname,
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(postData),
-        'Authorization': request.headers.authorization || '',
-      },
-    }, (proxyRes) => {
-      response.writeHead(proxyRes.statusCode || 200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no',
+  async analyzeStream(@Body() body: any, @Req() request: Request, @Res() res: Response) {
+    // Use raw axios with responseType stream to pipe SSE through
+    const axios = require('axios');
+    try {
+      const upstream = await axios({
+        method: 'POST',
+        url: `${this.aiServiceUrl}/analyze/stream`,
+        data: body,
+        headers: { Authorization: request.headers.authorization || '' },
+        responseType: 'stream',
       });
-      proxyRes.pipe(response);
-    });
-    
-    proxyReq.on('error', () => {
-      if (!response.headersSent) {
-        response.status(502).json({ message: 'AI service unreachable' });
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.setHeader('X-Accel-Buffering', 'no');
+      upstream.data.pipe(res);
+    } catch (err) {
+      if (!res.headersSent) {
+        res.status(502).json({ message: 'AI service unreachable' });
       }
-    });
-    
-    proxyReq.write(postData);
-    proxyReq.end();
+    }
   }
 
   @Post('assistant')
