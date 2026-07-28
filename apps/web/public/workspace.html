@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+<script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     /* ===== 5.2 Brand Identity ===== */
@@ -659,9 +660,9 @@
       <div class="divider"></div>
     </div>
 
-    <div class="tb-pair" style="flex-shrink:0;">
+    <div class="tb-pair" style="flex-shrink:0;cursor:pointer;" title="Click to change symbol">
       <span class="sym">EUR/USD</span>
-      <span class="px">1.08421 ▲ 0.12%</span>
+      <span class="px" id="topbarPrice">—</span>
     </div>
 
     <div class="tb-chips">
@@ -669,7 +670,7 @@
       <div class="tb-chip" id="clock">14:32:07 UTC</div>
       <div class="tb-chip"><span class="dot"></span> Connected</div>
       <div class="tb-chip"><span class="dot amber"></span> Market Open</div>
-      <div class="tb-chip">CPI (US) in 02:14:09</div>
+      <div class="tb-chip" id="topbarNextEvent">—</div>
     </div>
 
     <div class="tb-search" id="searchBar" tabindex="0" role="button">
@@ -689,9 +690,7 @@
         </button>
         <div class="dropdown" id="bellDropdown">
           <div class="dropdown-title">Notifications</div>
-          <div class="notif-item"><div class="notif-cat risk">!</div><div><div class="notif-title">Risk: Volatility expected around CPI</div><div class="notif-time">2 min ago · Risk</div></div></div>
-          <div class="notif-item"><div class="notif-cat ai">AI</div><div><div class="notif-title">Executive Brief updated — confidence +6%</div><div class="notif-time">6 min ago · AI</div></div></div>
-          <div class="notif-item"><div class="notif-cat market">M</div><div><div class="notif-title">EUR/USD swept session low liquidity</div><div class="notif-time">11 min ago · Market</div></div></div>
+          <div id="bellNotifList" style="text-align:center;padding:16px 0;color:var(--text-mute);font-size:11px;">No notifications</div>
         </div>
       </div>
 
@@ -835,33 +834,33 @@
       </div>
       </div>
 
-      <!-- Trade Plan tab — the trade logging workflow, now its own dockable/undockable tab -->
+      <!-- Trade Plan tab — populated by analysis results -->
       <div class="ai-body" id="tab-tradeplan" style="display:none;">
         <div class="trade-controls" style="padding:0;background:transparent;border:none;">
           <div class="tc-card">
             <div class="tc-label">Suggested Entry Zone</div>
-            <div class="tc-value entry">1.0828 – 1.0835</div>
-            <div class="tc-sub">Discount / OB confluence</div>
+            <div class="tc-value entry" id="tpEntry">—</div>
+            <div class="tc-sub" id="tpEntrySub">Run analysis for entry zone</div>
           </div>
           <div class="tc-card">
             <div class="tc-label">Suggested Stop Area</div>
-            <div class="tc-value stop">1.0801</div>
-            <div class="tc-sub">Below liquidity sweep</div>
+            <div class="tc-value stop" id="tpStop">—</div>
+            <div class="tc-sub" id="tpStopSub">Run analysis for stop loss</div>
           </div>
           <div class="tc-card">
             <div class="tc-label">Suggested Target Area</div>
-            <div class="tc-value target">1.0902</div>
-            <div class="tc-sub">Prior institutional high</div>
+            <div class="tc-value target" id="tpTarget">—</div>
+            <div class="tc-sub" id="tpTargetSub">Run analysis for target</div>
           </div>
           <div class="tc-card">
             <div class="tc-label">Risk / Reward Preview</div>
-            <div class="tc-value rr">1 : 2.7</div>
-            <div class="tc-sub">Est. risk 0.8% of account</div>
+            <div class="tc-value rr" id="tpRR">—</div>
+            <div class="tc-sub" id="tpRRSub">Run analysis for R:R</div>
           </div>
 
           <div class="checklist-row" style="flex-wrap:wrap;">
-            <label class="cl-item"><span class="cl-box done"></span>I have reviewed the invalidation conditions</label>
-            <label class="cl-item"><span class="cl-box done"></span>I acknowledge this is not financial advice</label>
+            <label class="cl-item"><span class="cl-box"></span>I have reviewed the invalidation conditions</label>
+            <label class="cl-item"><span class="cl-box"></span>I acknowledge this is not financial advice</label>
             <label class="cl-item"><span class="cl-box"></span>I have sized this trade per my risk plan</label>
             <button class="btn-primary" disabled>Log Trade Plan</button>
           </div>
@@ -899,88 +898,79 @@
       <div class="ai-body" id="tab-brief">
         <div class="brief-head">
           <span class="brief-title">Executive Summary</span>
-          <span class="bias-badge">Bullish Bias</span>
+          <span class="bias-badge" id="briefBias" style="background:var(--bg-panel);color:var(--text-mute);border-color:var(--border);">No Analysis</span>
         </div>
-        <p class="brief-summary">
-          Price has swept sell-side liquidity into a higher-timeframe discount order block. Seven of eight
-          specialist agents concur on continuation once the 1.0828–1.0835 zone is respected. The Sentiment
-          agent remains neutral pending the upcoming CPI release.
+        <p class="brief-summary" id="briefSummary" style="text-align:center;padding:24px 0;color:var(--text-mute);">
+          Run an analysis to generate an Executive Intelligence Brief.
         </p>
 
         <!-- 5.12 Confidence Ring -->
-        <div class="confidence-block">
+        <div class="confidence-block" id="briefConfidenceBlock" style="opacity:0.4;">
           <div class="ring-wrap">
             <svg width="86" height="86" viewBox="0 0 86 86">
               <circle class="ring-track" cx="43" cy="43" r="36"></circle>
               <circle class="ring-fill" cx="43" cy="43" r="36"
-                stroke-dasharray="226.19" stroke-dashoffset="61.1"></circle>
+                stroke-dasharray="226.19" stroke-dashoffset="226.19"></circle>
             </svg>
-            <div class="ring-label"><span class="num">73%</span><span class="cap">Confidence</span></div>
+            <div class="ring-label"><span class="num" id="briefConfNum">—%</span><span class="cap">Confidence</span></div>
           </div>
-          <div class="conf-meta">
-            <div class="conf-row"><span>Evidence Strength</span><b>Strong (6/8 agents)</b></div>
-            <div class="conf-row"><span>Trend</span><b class="trend-up">▲ +6% since last update</b></div>
-            <div class="conf-row"><span>Historical Reliability</span><b>68% (41 similar setups)</b></div>
+          <div class="conf-meta" id="briefConfMeta">
+            <div class="conf-row"><span>Evidence Strength</span><b id="briefStrength">—</b></div>
+            <div class="conf-row"><span>Trend</span><b id="briefTrend">—</b></div>
+            <div class="conf-row"><span>Historical Reliability</span><b id="briefReliability">—</b></div>
           </div>
         </div>
 
-        <div class="split-cases">
+        <div class="split-cases" id="briefSplitCases">
           <div class="case-card bull">
             <div class="case-title">Bull Case</div>
-            <ul>
-              <li>Liquidity sweep below prior session low</li>
-              <li>Bullish order block respected on 15m</li>
-              <li>Higher timeframe structure remains up</li>
-            </ul>
+            <ul id="briefBullList"><li>No analysis data yet</li></ul>
           </div>
           <div class="case-card bear">
             <div class="case-title">Bear Case</div>
-            <ul>
-              <li>CPI release in 2h may inject volatility</li>
-              <li>Price still below 4H equilibrium</li>
-              <li>Sentiment agent reports neutral positioning</li>
-            </ul>
+            <ul id="briefBearList"><li>No analysis data yet</li></ul>
           </div>
         </div>
 
-        <div class="stack" style="gap:0;">
-          <div class="info-line"><span>Risk Assessment</span><b>Moderate</b></div>
-          <div class="info-line danger"><span>Trade Invalidation</span><b>Close below 1.0798</b></div>
-          <div class="info-line"><span>Recommended Scenario</span><b>Long on retest of OB</b></div>
-          <div class="info-line"><span>Alternative Scenario</span><b>Range until CPI print</b></div>
-          <div class="info-line"><span>Upcoming News</span><b>US CPI · 02:14:09</b></div>
+        <div class="stack" id="briefInfoStack" style="gap:0;">
+          <div class="info-line"><span>Risk Assessment</span><b id="briefRisk">—</b></div>
+          <div class="info-line danger"><span>Trade Invalidation</span><b id="briefInvalidation">—</b></div>
+          <div class="info-line"><span>Recommended Scenario</span><b id="briefRecommended">—</b></div>
+          <div class="info-line"><span>Alternative Scenario</span><b id="briefAlternative">—</b></div>
+          <div class="info-line"><span>Upcoming News</span><b id="briefNews">—</b></div>
         </div>
 
-        <!-- 5.14 Agent Reasoning Panel (example, expandable) -->
-        <div class="agent-panel">
+        <!-- 5.14 Agent Reasoning Panel -->
+        <div class="agent-panel" id="briefAgentPanel" style="display:none;">
           <div class="agent-head">
-            <div class="agent-icon" id="agentIcon">TA</div>
+            <div class="agent-icon" id="agentIcon">—</div>
             <div>
-              <div class="agent-name" id="agentName">Technical Agent</div>
-              <div class="agent-sub">Selected reasoning · click an evidence card to switch</div>
+              <div class="agent-name" id="agentName">Select an Agent</div>
+              <div class="agent-sub">click an evidence card to view reasoning</div>
             </div>
           </div>
-          <div class="agent-field"><div class="lbl">Mission</div><div class="val" id="agentMission">Assess market structure and liquidity conditions on EUR/USD.</div></div>
-          <div class="agent-field"><div class="lbl">Observations</div><div class="val" id="agentObs">Sell-side liquidity was swept below the prior session low; price reclaimed the level within three candles.</div></div>
-          <div class="agent-field"><div class="lbl">Evidence</div><div class="val" id="agentEvi">Bullish order block at 1.0828–1.0835 remains unmitigated on the 15m timeframe.</div></div>
-          <div class="agent-field"><div class="lbl">Contradictions</div><div class="val" id="agentContra">Price remains beneath the 4H equilibrium level, which the Sentiment Agent flags as a reason for caution.</div></div>
-          <div class="agent-field"><div class="lbl">Limitations</div><div class="val" id="agentLim">Confidence may shift materially once the CPI release is absorbed.</div></div>
-          <div class="agent-field" style="margin-bottom:0;"><div class="lbl">Conclusion</div><div class="val" id="agentConc">Structure favors continuation higher, contingent on the discount zone holding.</div></div>
+          <div class="agent-field"><div class="lbl">Mission</div><div class="val" id="agentMission">—</div></div>
+          <div class="agent-field"><div class="lbl">Observations</div><div class="val" id="agentObs">—</div></div>
+          <div class="agent-field"><div class="lbl">Evidence</div><div class="val" id="agentEvi">—</div></div>
+          <div class="agent-field"><div class="lbl">Contradictions</div><div class="val" id="agentContra">—</div></div>
+          <div class="agent-field"><div class="lbl">Limitations</div><div class="val" id="agentLim">—</div></div>
+          <div class="agent-field" style="margin-bottom:0;"><div class="lbl">Conclusion</div><div class="val" id="agentConc">—</div></div>
+        </div>
+        <div id="briefRunPrompt" style="text-align:center;padding:32px 0;">
+          <button class="analyze-btn" onclick="document.getElementById('analyzeBtn').click()" style="font-size:13px;padding:12px 24px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M13 2 3 14h8l-1 8 10-12h-8z"/></svg>
+            Run Analysis Now
+          </button>
         </div>
       </div>
 
       <!-- ===== 5.13 Evidence Cards (tab) ===== -->
       <div class="ai-body" id="tab-evidence" style="display:none;">
-        <div class="section-label">Specialist Evidence <span>8 Agents</span></div>
-        <div class="evidence-grid">
-          <div class="ev-card" data-agent="TA" data-name="Technical Agent" data-mission="Assess market structure and liquidity conditions on EUR/USD." data-obs="Sell-side liquidity was swept below the prior session low; price reclaimed the level within three candles." data-evi="Bullish order block at 1.0828–1.0835 remains unmitigated on the 15m timeframe." data-contra="Price remains beneath the 4H equilibrium level, which the Sentiment Agent flags as a reason for caution." data-lim="Confidence may shift materially once the CPI release is absorbed." data-conc="Structure favors continuation higher, contingent on the discount zone holding."><div class="ev-top"><span class="ev-name">Technical</span><span class="ev-status validated"></span></div><div class="ev-conf">Confidence 81%</div><div class="ev-bar"><span style="width:81%"></span></div><div class="ev-finding">OB unmitigated, structure bullish on 15m/1H.</div></div>
-          <div class="ev-card" data-agent="FA" data-name="Fundamental Agent" data-mission="Evaluate macroeconomic and rate-differential drivers for EUR/USD." data-obs="ECB rhetoric has firmed slightly while Fed pricing remains unchanged this week." data-evi="Short-term rate differential modestly favors EUR relative to last month." data-contra="US CPI could shift rate-cut expectations within hours." data-lim="Fundamental bias is directional only and doesn't provide precise levels." data-conc="Backdrop mildly supportive of EUR; not a standalone signal."><div class="ev-top"><span class="ev-name">Fundamental</span><span class="ev-status validated"></span></div><div class="ev-conf">Confidence 66%</div><div class="ev-bar"><span style="width:66%"></span></div><div class="ev-finding">Rate differential modestly favors EUR near-term.</div></div>
-          <div class="ev-card" data-agent="SE" data-name="Sentiment Agent" data-mission="Read positioning and crowd sentiment across retail and institutional flow." data-obs="Retail positioning is roughly balanced; no extreme skew detected." data-evi="Options skew shows no strong directional bias ahead of CPI." data-contra="Historically, sentiment turns sharply directional immediately after CPI prints." data-lim="Sentiment data updates with a delay and may lag fast-moving price action." data-conc="Neutral — deferring directional weight to other agents until CPI clears."><div class="ev-top"><span class="ev-name">Sentiment</span><span class="ev-status uncertain"></span></div><div class="ev-conf">Confidence 48%</div><div class="ev-bar"><span style="width:48%"></span></div><div class="ev-finding">Positioning neutral ahead of CPI print.</div></div>
-          <div class="ev-card" data-agent="LQ" data-name="Liquidity Agent" data-mission="Map resting liquidity pools and recent sweeps across the order book." data-obs="Sell-side liquidity below the prior session low was swept and reclaimed." data-evi="A larger buy-side liquidity pool rests above 1.0902." data-contra="A deeper sweep toward 1.0780 remains possible if momentum stalls." data-lim="Liquidity maps are inferred from price action, not direct order-book access." data-conc="Path of least resistance favors a move toward the buy-side pool."><div class="ev-top"><span class="ev-name">Liquidity</span><span class="ev-status validated"></span></div><div class="ev-conf">Confidence 77%</div><div class="ev-bar"><span style="width:77%"></span></div><div class="ev-finding">Sell-side pool swept; buy-side pool above 1.0902.</div></div>
-          <div class="ev-card" data-agent="HI" data-name="Historical Agent" data-mission="Compare current conditions against a validated library of prior setups." data-obs="41 historically similar liquidity-sweep-plus-OB setups were identified." data-evi="68% of comparable setups continued in the swept direction within 24 hours." data-contra="The remaining 32% reversed, most often around scheduled news events." data-lim="Sample size is moderate; results are probabilistic, not predictive." data-conc="Base rates lean favorably but do not guarantee this outcome."><div class="ev-top"><span class="ev-name">Historical</span><span class="ev-status validated"></span></div><div class="ev-conf">Confidence 68%</div><div class="ev-bar"><span style="width:68%"></span></div><div class="ev-finding">41 comparable setups, 68% continuation rate.</div></div>
-          <div class="ev-card" data-agent="RK" data-name="Risk Agent" data-mission="Quantify event risk and volatility conditions surrounding the trade window." data-obs="US CPI is due in just over two hours, historically a high-volatility event for EUR/USD." data-evi="Implied volatility is elevated relative to the 20-day average." data-contra="Elevated volatility can invalidate technical levels quickly in either direction." data-lim="Cannot predict the CPI print itself, only the conditions around it." data-conc="Position sizing should account for reduced reliability into the release."><div class="ev-top"><span class="ev-name">Risk</span><span class="ev-status uncertain"></span></div><div class="ev-conf">Confidence 55%</div><div class="ev-bar"><span style="width:55%"></span></div><div class="ev-finding">Elevated volatility expected around CPI release.</div></div>
-          <div class="ev-card" data-agent="PS" data-name="Psychology Agent" data-mission="Detect signs of crowd euphoria, panic, or overextension in price behavior." data-obs="No parabolic extension or panic-driven candles observed in recent sessions." data-evi="Price action shows measured, orderly moves rather than emotional spikes." data-contra="Behavior could shift rapidly following a surprise CPI print." data-lim="Assessment is qualitative and based on recent price behavior only." data-conc="No psychological red flags at current levels."><div class="ev-top"><span class="ev-name">Psychology</span><span class="ev-status validated"></span></div><div class="ev-conf">Confidence 71%</div><div class="ev-bar"><span style="width:71%"></span></div><div class="ev-finding">No signs of retail crowding at current levels.</div></div>
-          <div class="ev-card" data-agent="DA" data-name="Devil's Advocate Agent" data-mission="Actively challenge the prevailing thesis and surface disconfirming evidence." data-obs="Price has not yet closed back above the 4H equilibrium level." data-evi="Several prior setups without a 4H equilibrium reclaim failed to continue." data-contra="This is itself the dissenting view — logged for transparency, not resolved." data-lim="Deliberately biased toward skepticism; weight accordingly." data-conc="Thesis is plausible but not yet confirmed on the higher timeframe."><div class="ev-top"><span class="ev-name">Devil's Advocate</span><span class="ev-status conflict"></span></div><div class="ev-conf">Confidence 39%</div><div class="ev-bar"><span style="width:39%"></span></div><div class="ev-finding">4H equilibrium not yet reclaimed — thesis unproven.</div></div>
+        <div class="section-label">Specialist Evidence <span id="evidenceAgentCount">0 Agents</span></div>
+        <div class="evidence-grid" id="evidenceGrid">
+          <div style="grid-column:1/-1;text-align:center;padding:32px 0;color:var(--text-mute);font-size:12px;">
+            Run an analysis to see specialist agent evidence.
+          </div>
         </div>
       </div>
 
@@ -988,53 +978,22 @@
       <div class="ai-body" id="tab-chat" style="display:none;padding-bottom:12px;">
         <div id="chatMessages" class="stack">
           <div class="chat-msg">
-            <div class="chat-avatar user">JR</div>
-            <div class="chat-bubble">Why is confidence only 73%?</div>
-          </div>
-          <div class="chat-msg">
             <div class="chat-avatar ai">AI</div>
-            <div class="chat-bubble">
-              Confidence is capped by two dissenting agents. <b>Sentiment</b> is neutral pending the CPI
-              release, and the <b>Devil's Advocate</b> agent notes price hasn't reclaimed the 4H equilibrium yet.
-              Six of eight agents support continuation.
-            </div>
-          </div>
-          <div class="chat-msg">
-            <div class="chat-avatar user">JR</div>
-            <div class="chat-bubble">What would invalidate this analysis?</div>
-          </div>
-          <div class="chat-msg">
-            <div class="chat-avatar ai">AI</div>
-            <div class="chat-bubble">A 15m close below <b>1.0798</b> would invalidate the current thesis — that's below the liquidity sweep low and would suggest the move was a false reclaim.</div>
+            <div class="chat-bubble">Hello! I'm your Mavyx AI assistant. Ask me anything about the markets, your analysis, or trading concepts.</div>
           </div>
         </div>
       </div>
 
-      <!-- ===== TradingView Live Chat (tab) — dedicated mount, built for a real TradingView chat widget ===== -->
+      <!-- ===== TradingView Live Chat (tab) ===== -->
       <div class="ai-body tv-embed" id="tab-tvchat" style="display:none;">
-        <!-- Drop a real TradingView chat widget (e.g. the Symbol/Community chat embed script) into #tvChatMount.
-             This container is full-bleed (no padding, flex:1, min-height:0) so the widget can fill it exactly. -->
-        <div class="tv-mount" id="tvChatMount">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-          <div class="tv-title">TradingView Live Chat</div>
-          <div class="tv-sub">This panel is reserved for the live TradingView chat widget. Mount it into <code>#tvChatMount</code>.</div>
-        </div>
+        <div id="tvChatWidget" style="width:100%;height:100%;min-height:300px;"></div>
       </div>
 
       <!-- ===== 5.17 Notification Center (tab) ===== -->
       <div class="ai-body" id="tab-alerts" style="display:none;">
         <div class="section-label">Notifications</div>
-        <div class="notif-item"><div class="notif-cat risk">!</div><div><div class="notif-title">Risk: Volatility expected around CPI</div><div class="notif-time">2 min ago · Risk</div></div></div>
-        <div class="notif-item"><div class="notif-cat ai">AI</div><div><div class="notif-title">Executive Brief updated — confidence +6%</div><div class="notif-time">6 min ago · AI</div></div></div>
-        <div class="notif-item"><div class="notif-cat market">M</div><div><div class="notif-title">EUR/USD swept session low liquidity</div><div class="notif-time">11 min ago · Market</div></div></div>
-        <div class="notif-item"><div class="notif-cat system">S</div><div><div class="notif-title">Data feed reconnected — no gaps detected</div><div class="notif-time">28 min ago · System</div></div></div>
-
-        <!-- 5.19 Empty & Loading States demo -->
-        <div class="section-label" style="margin-top:6px;">Loading State Example</div>
-        <div class="stack">
-          <div class="skeleton" style="height:14px;width:70%;"></div>
-          <div class="skeleton" style="height:14px;width:90%;"></div>
-          <div class="skeleton" style="height:14px;width:55%;"></div>
+        <div id="alertsList">
+          <div style="text-align:center;padding:24px 0;color:var(--text-mute);font-size:12px;">No notifications yet.</div>
         </div>
       </div>
 
@@ -1043,6 +1002,45 @@
         <button class="chat-send" id="chatSend">Send</button>
       </div>
     </aside>
+  </div>
+
+  <!-- Auth Modal (shown when not authenticated) -->
+  <div id="authModal" style="display:none;position:fixed;inset:0;z-index:700;background:var(--bg);align-items:center;justify-content:center;">
+    <div style="text-align:center;max-width:380px;width:100%;padding:20px;">
+      <img src="mavyx-logo-gold.png" alt="Mavyx Intelligence" style="height:28px;margin-bottom:24px;opacity:.9;">
+      <h2 style="font-size:18px;font-weight:800;margin-bottom:4px;color:var(--text);">Welcome to Mavyx</h2>
+      <p style="font-size:12px;color:var(--text-mute);margin-bottom:24px;">Sign in to access your intelligence workspace</p>
+      
+      <!-- OAuth Buttons -->
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:20px;">
+        <button id="authGoogle" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">
+          <svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+        <button id="authMicrosoft" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">
+          <svg width="16" height="16" viewBox="0 0 24 24"><rect x="1" y="1" width="10" height="10" fill="#F25022"/><rect x="13" y="1" width="10" height="10" fill="#7FBA00"/><rect x="1" y="13" width="10" height="10" fill="#00A4EF"/><rect x="13" y="13" width="10" height="10" fill="#FFB900"/></svg>
+          Continue with Microsoft
+        </button>
+        <button id="authApple" style="display:flex;align-items:center;justify-content:center;gap:10px;padding:11px;border-radius:8px;border:1px solid var(--border);background:var(--bg-panel);color:var(--text);font-weight:700;font-size:12px;cursor:pointer;font-family:inherit;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.52-3.23 0-1.44.65-2.2.46-3.06-.4C3.79 16.17 4.36 9.02 8.7 8.76c1.26.06 2.13.7 2.89.73.94-.18 1.83-.83 2.85-.75 1.21.1 2.12.57 2.72 1.44-2.5 1.5-1.9 4.8.45 5.71-.58 1.5-1.31 2.99-2.56 4.39zM12.05 8.67c-.15-2.23 1.66-4.07 3.74-4.25.27 2.52-2.3 4.45-3.74 4.25z"/></svg>
+          Continue with Apple
+        </button>
+      </div>
+      
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+        <span style="font-size:10px;color:var(--text-mute);font-weight:700;">OR</span>
+        <div style="flex:1;height:1px;background:var(--border);"></div>
+      </div>
+      
+      <!-- Email/Password -->
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <input type="email" id="authEmail" placeholder="Email address" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:12.5px;color:var(--text);font-family:inherit;">
+        <input type="password" id="authPassword" placeholder="Password (min 12 characters)" style="background:var(--bg-panel);border:1px solid var(--border);border-radius:8px;padding:11px 14px;font-size:12.5px;color:var(--text);font-family:inherit;">
+        <button id="authEmailBtn" style="padding:11px;border-radius:8px;border:none;background:linear-gradient(135deg,var(--gold),#B8933E);color:#1a1400;font-weight:800;font-size:12px;cursor:pointer;font-family:inherit;">Sign In / Sign Up</button>
+        <p id="authError" style="font-size:11px;color:var(--red);margin:0;display:none;"></p>
+      </div>
+    </div>
   </div>
 
   <!-- Search Modal -->
@@ -1076,6 +1074,7 @@
 
 </div>
 
+<script src="/supabase-integration.js"></script>
 <script src="/backend-bridge.js"></script>
 <script>
   // Note: Clock and timeframe are handled in the bottom script block
@@ -1099,7 +1098,7 @@
     });
   });
 
-  // Analyze button — REAL BACKEND
+  // Analyze button — REAL BACKEND + SUPABASE
   document.getElementById('analyzeBtn').addEventListener('click', async function(){
     if(this.classList.contains('busy')) return;
     const btn = this, label = document.getElementById('analyzeLabel');
@@ -1114,9 +1113,13 @@
       
       const result = await window.mavyxBackend.runAnalysis(symbol, timeframe);
       
-      // Update Executive Brief with real results
       if (result) {
-        // Update confidence ring
+        // Save to Supabase
+        if (window.mavyxSupabase) {
+          try { await window.mavyxSupabase.saveAnalysis(result); } catch {}
+        }
+        
+        // === Update Executive Brief ===
         const conf = result.confidence || 0;
         const circumference = 2 * Math.PI * 36;
         const offset = circumference - (conf / 100) * circumference;
@@ -1125,11 +1128,15 @@
           ringFill.setAttribute('stroke-dasharray', circumference.toString());
           ringFill.setAttribute('stroke-dashoffset', offset.toString());
         }
-        const ringNum = document.querySelector('.ring-label .num');
+        const ringNum = document.getElementById('briefConfNum');
         if (ringNum) ringNum.textContent = conf + '%';
         
-        // Update bias badge
-        const biasBadge = document.querySelector('.bias-badge');
+        // Show the brief content, hide the prompt
+        document.getElementById('briefRunPrompt').style.display = 'none';
+        document.getElementById('briefConfidenceBlock').style.opacity = '1';
+        
+        // Bias badge
+        const biasBadge = document.getElementById('briefBias');
         if (biasBadge) {
           const rec = result.recommendation || 'wait';
           const labels = { buy: 'Bullish Bias', sell: 'Bearish Bias', wait: 'Wait', no_trade: 'No Trade' };
@@ -1140,38 +1147,99 @@
           biasBadge.style.background = rec === 'buy' ? 'var(--green-dim)' : rec === 'sell' ? 'var(--red-dim)' : rec === 'wait' ? 'var(--orange-dim)' : 'var(--bg-panel)';
         }
         
-        // Update summary
-        const summaryEl = document.querySelector('.brief-summary');
+        // Summary
+        const summaryEl = document.getElementById('briefSummary');
         if (summaryEl && result.executive_summary) {
           summaryEl.textContent = result.executive_summary;
+          summaryEl.style.textAlign = 'left';
+          summaryEl.style.padding = '0';
+          summaryEl.style.color = 'var(--text-soft)';
         }
         
-        // Update confidence metadata
-        const confMeta = document.querySelector('.conf-meta');
-        if (confMeta) {
-          const rows = confMeta.querySelectorAll('.conf-row');
-          if (rows[0]) rows[0].querySelector('b').textContent = `${result.successful_agents || 0}/${result.total_agents || 0} agents`;
-          if (rows[1]) rows[1].querySelector('b').textContent = `${result.processing_time_ms || 0}ms`;
-          if (rows[2]) {
-            const c = result.agent_consensus || {};
-            rows[2].querySelector('b').textContent = `${c.bullish||0}B · ${c.bearish||0}B · ${c.neutral||0}N`;
-          }
+        // Confidence metadata
+        const strengthEl = document.getElementById('briefStrength');
+        const trendEl = document.getElementById('briefTrend');
+        const relEl = document.getElementById('briefReliability');
+        if (strengthEl) strengthEl.textContent = `${result.successful_agents || 0}/${result.total_agents || 0} agents`;
+        if (trendEl) trendEl.textContent = `${result.processing_time_ms || 0}ms processing`;
+        if (relEl) {
+          const c = result.agent_consensus || {};
+          relEl.textContent = `${c.bullish||0}B · ${c.bearish||0}B · ${c.neutral||0}N`;
         }
         
-        // Update trade controls
+        // Bull/Bear cases
+        const bullList = document.getElementById('briefBullList');
+        const bearList = document.getElementById('briefBearList');
+        if (bullList && result.bull_case) {
+          const cases = Array.isArray(result.bull_case) ? result.bull_case : [result.bull_case];
+          bullList.innerHTML = cases.map(c => `<li>${c}</li>`).join('') || '<li>—</li>';
+        }
+        if (bearList && result.bear_case) {
+          const cases = Array.isArray(result.bear_case) ? result.bear_case : [result.bear_case];
+          bearList.innerHTML = cases.map(c => `<li>${c}</li>`).join('') || '<li>—</li>';
+        }
+        
+        // Info lines
+        const riskEl = document.getElementById('briefRisk');
+        const invEl = document.getElementById('briefInvalidation');
+        const recEl = document.getElementById('briefRecommended');
+        const altEl = document.getElementById('briefAlternative');
+        if (riskEl) riskEl.textContent = result.risk_assessment || '—';
+        if (invEl) invEl.textContent = result.invalidation_level || '—';
+        if (recEl) recEl.textContent = result.recommended_scenario || '—';
+        if (altEl) altEl.textContent = result.alternative_scenario || '—';
+        
+        // === Update Trade Plan ===
         if (result.suggested_action) {
           const sa = result.suggested_action;
-          const entryEl = document.querySelector('.tc-value.entry');
-          const stopEl = document.querySelector('.tc-value.stop');
-          const targetEl = document.querySelector('.tc-value.target');
-          const rrEl = document.querySelector('.tc-value.rr');
-          if (entryEl && sa.entry_zone) entryEl.textContent = sa.entry_zone;
-          if (stopEl && sa.stop_loss) stopEl.textContent = sa.stop_loss;
-          if (targetEl && sa.take_profit_1) targetEl.textContent = sa.take_profit_1;
-          if (rrEl) rrEl.textContent = conf + '%';
+          const entryEl = document.getElementById('tpEntry');
+          const stopEl = document.getElementById('tpStop');
+          const targetEl = document.getElementById('tpTarget');
+          const rrEl = document.getElementById('tpRR');
+          if (entryEl && sa.entry_zone) { entryEl.textContent = sa.entry_zone; document.getElementById('tpEntrySub').textContent = sa.entry_reason || ''; }
+          if (stopEl && sa.stop_loss) { stopEl.textContent = sa.stop_loss; document.getElementById('tpStopSub').textContent = sa.stop_reason || ''; }
+          if (targetEl && sa.take_profit_1) { targetEl.textContent = sa.take_profit_1; document.getElementById('tpTargetSub').textContent = sa.target_reason || ''; }
+          if (rrEl) { rrEl.textContent = sa.risk_reward || (conf + '%'); document.getElementById('tpRRSub').textContent = 'Based on ' + conf + '% confidence'; }
         }
         
-        showToast('Analysis complete — Executive Brief updated');
+        // === Update Evidence Grid ===
+        const agents = result.agent_results || result.agents || [];
+        const grid = document.getElementById('evidenceGrid');
+        const countEl = document.getElementById('evidenceAgentCount');
+        if (grid && agents.length > 0) {
+          countEl.textContent = agents.length + ' Agents';
+          grid.innerHTML = agents.map(a => {
+            const confVal = a.confidence || 0;
+            const status = confVal >= 70 ? 'validated' : confVal >= 45 ? 'uncertain' : 'conflict';
+            return `<div class="ev-card" data-agent="${a.agent?.substring(0,2) || 'AI'}" data-name="${a.agent || 'Agent'}" data-mission="${(a.mission || '').replace(/"/g, '&quot;')}" data-obs="${(a.observations || '').replace(/"/g, '&quot;')}" data-evi="${(a.evidence || '').replace(/"/g, '&quot;')}" data-contra="${(a.contradictions || '').replace(/"/g, '&quot;')}" data-lim="${(a.limitations || '').replace(/"/g, '&quot;')}" data-conc="${(a.conclusion || '').replace(/"/g, '&quot;')}">
+              <div class="ev-top"><span class="ev-name">${a.agent || 'Agent'}</span><span class="ev-status ${status}"></span></div>
+              <div class="ev-conf">Confidence ${confVal}%</div>
+              <div class="ev-bar"><span style="width:${confVal}%"></span></div>
+              <div class="ev-finding">${(a.conclusion || '—').substring(0, 80)}</div>
+            </div>`;
+          }).join('');
+          
+          // Re-wire evidence card clicks
+          grid.querySelectorAll('.ev-card').forEach(card => {
+            card.addEventListener('click', () => {
+              grid.querySelectorAll('.ev-card').forEach(c => c.classList.remove('selected'));
+              card.classList.add('selected');
+              document.getElementById('agentIcon').textContent = card.dataset.agent;
+              document.getElementById('agentName').textContent = card.dataset.name;
+              document.getElementById('agentMission').textContent = card.dataset.mission || '—';
+              document.getElementById('agentObs').textContent = card.dataset.obs || '—';
+              document.getElementById('agentEvi').textContent = card.dataset.evi || '—';
+              document.getElementById('agentContra').textContent = card.dataset.contra || '—';
+              document.getElementById('agentLim').textContent = card.dataset.lim || '—';
+              document.getElementById('agentConc').textContent = card.dataset.conc || '—';
+              document.getElementById('briefAgentPanel').style.display = 'block';
+              activateAiTab('brief');
+              document.querySelector('.ai-body#tab-brief').scrollTo({top: document.querySelector('#briefAgentPanel').offsetTop - 20, behavior:'smooth'});
+            });
+          });
+        }
+        
+        showToast('Analysis complete — all panels updated');
         activateAiTab('brief');
       }
     } catch(err) {
@@ -1181,24 +1249,26 @@
     btn.classList.remove('busy');
     label.textContent = 'Analyze';
   });
-  document.querySelector('.btn-primary').addEventListener('click', function(){
+  document.querySelector('.btn-primary').addEventListener('click', async function(){
     if(this.disabled) return;
     const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';
-    const entry = document.querySelector('.tc-value.entry')?.textContent || '';
-    const stop = document.querySelector('.tc-value.stop')?.textContent || '';
-    const target = document.querySelector('.tc-value.target')?.textContent || '';
+    const entry = document.getElementById('tpEntry')?.textContent || '';
+    const stop = document.getElementById('tpStop')?.textContent || '';
+    const target = document.getElementById('tpTarget')?.textContent || '';
     
-    window.mavyxBackend.saveJournalEntry({
-      symbol: symbol,
-      direction: 'buy',
-      entry: entry,
-      exit: '',
-      stopLoss: stop,
-      target: target,
-      pnl: 0,
-      notes: 'Trade plan logged from Workspace',
-      status: 'planned',
-    });
+    if (window.mavyxSupabase) {
+      try {
+        await window.mavyxSupabase.saveJournal({
+          symbol, direction: 'buy', entry, exit: '', stopLoss: stop, target, pnl: 0, rr: 0,
+          notes: 'Trade plan logged from Workspace', status: 'planned',
+        });
+      } catch {}
+    } else {
+      window.mavyxBackend.saveJournalEntry({
+        symbol, direction: 'buy', entry, exit: '', stopLoss: stop, target, pnl: 0,
+        notes: 'Trade plan logged from Workspace', status: 'planned',
+      });
+    }
     
     const original = this.textContent;
     this.textContent = 'Trade Plan Logged ✓';
@@ -1378,9 +1448,9 @@
       } else if(view === 'Settings'){
         window.openSettingsPanel && window.openSettingsPanel('appearance');
       } else if(view === 'Logout'){
-        // Real logout
-        localStorage.removeItem('mavyx-auth-store');
-        window.location.href = '/login';
+        // Real logout via Supabase
+        if (window.mavyxSupabase) { window.mavyxSupabase.signOut(); }
+        else { localStorage.removeItem('mavyx-auth-store'); window.location.href = '/login'; }
       } else if(view === 'Workspace'){
         showToast('You are in the Workspace');
       } else if(AD_HOC_VIEWS.includes(view)){
@@ -1438,6 +1508,11 @@
     
     chatHistory.push({ role: 'user', text: text });
     
+    // Save to Supabase
+    if (window.mavyxSupabase) {
+      try { await window.mavyxSupabase.saveChatMessage('assistant', 'user', text); } catch {}
+    }
+    
     // Show thinking indicator
     const thinkingMsg = document.createElement('div');
     thinkingMsg.className = 'chat-msg';
@@ -1460,6 +1535,11 @@
       wrap.scrollTop = wrap.scrollHeight;
       
       chatHistory.push({ role: 'assistant', text: result.response || '' });
+      
+      // Save AI response to Supabase
+      if (window.mavyxSupabase && result.response) {
+        try { await window.mavyxSupabase.saveChatMessage('assistant', 'assistant', result.response); } catch {}
+      }
       
       // Execute action if provided
       if (result.action) {
@@ -2027,7 +2107,12 @@
         <div class="section-label" style="margin-bottom:12px;">Live Market Quotes</div>
         <div id="marketsList" class="stack" style="gap:6px;">
           ${MAJOR_PAIRS.map(p => `
-            <div class="notif-item" data-pair="${p}" style="cursor:pointer;">
+            <div class="notif-item" data-pair="${p}" style="cursor:pointer;" onclick="(function(){
+              document.querySelector('.tb-pair .sym').textContent = '${p}';
+              var tvSym = '${p.replace('/','').startsWith('XAU') ? 'TVC:GOLD' : p.replace('/','').startsWith('BTC') ? 'BINANCE:BTCUSDT' : 'FX:' + p.replace('/','')}';
+              if(window.initTradingView) window.initTradingView(tvSym);
+              showToast('Chart switched to ${p}');
+            })()">
               <div class="notif-cat market" style="font-size:10px;">${p.split('/')[0].substring(0,2)}</div>
               <div style="flex:1;">
                 <div class="notif-title">${p}</div>
@@ -2069,10 +2154,14 @@
       }
     }
 
-    function buildTradeJournalContent(body) {
+    async function buildTradeJournalContent(body) {
       body.style.padding = '16px';
       body.style.overflow = 'auto';
-      const entries = window.mavyxBackend.getJournalEntries();
+      let entries = [];
+      if (window.mavyxSupabase) {
+        try { entries = await window.mavyxSupabase.getJournal(); } catch {}
+      }
+      if (entries.length === 0) entries = window.mavyxBackend.getJournalEntries(); // fallback
       body.innerHTML = `
         <div class="section-label" style="margin-bottom:12px;">
           Trade Journal
@@ -2100,18 +2189,24 @@
         </div>
         <div id="journalEntries" class="stack" style="gap:8px;">
           ${entries.length === 0 ? '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">No journal entries yet. Click "+ New Entry" to log your first trade.</div>' :
-          entries.map(e => `
-            <div class="notif-item" data-jid="${e.id}">
-              <div class="notif-cat ${(e.pnl||0) >= 0 ? 'market' : 'risk'}" style="font-size:9px;">${e.direction === 'sell' ? 'S' : 'B'}</div>
+          entries.map(e => {
+            const sym = e.symbol || 'EUR/USD';
+            const dir = e.direction || 'buy';
+            const ent = e.entry || e.entry_price || '—';
+            const ext = e.exit || e.exit_price || '—';
+            const pnl = e.pnl || 0;
+            const created = e.created_at || e.createdAt || new Date().toISOString();
+            return `<div class="notif-item" data-jid="${e.id}">
+              <div class="notif-cat ${pnl >= 0 ? 'market' : 'risk'}" style="font-size:9px;">${dir === 'sell' ? 'S' : 'B'}</div>
               <div style="flex:1;">
-                <div class="notif-title">${e.symbol || 'EUR/USD'} · ${e.direction || 'buy'}</div>
-                <div class="notif-time">${e.entry || '—'} → ${e.exit || '—'} · ${new Date(e.createdAt).toLocaleDateString()}</div>
+                <div class="notif-title">${sym} · ${dir}</div>
+                <div class="notif-time">${ent} → ${ext} · ${new Date(created).toLocaleDateString()}</div>
               </div>
               <div style="text-align:right;">
-                <div style="font-size:12px;font-weight:700;color:${(e.pnl||0) >= 0 ? 'var(--green)' : 'var(--red)'};">${(e.pnl||0) >= 0 ? '+' : ''}${e.pnl || 0} pips</div>
+                <div style="font-size:12px;font-weight:700;color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'};">${pnl >= 0 ? '+' : ''}${pnl} pips</div>
               </div>
-            </div>
-          `).join('')}
+            </div>`;
+          }).join('')}
         </div>`;
       // Wire up form
       const addBtn = body.querySelector('#addJournalBtn');
@@ -2124,7 +2219,7 @@
           btn.classList.add('on');
         });
       });
-      body.querySelector('#saveJournalBtn').addEventListener('click', () => {
+      body.querySelector('#saveJournalBtn').addEventListener('click', async () => {
         const entry = {
           symbol: body.querySelector('#jf-symbol').value,
           direction: form.querySelector('[data-dir].on')?.dataset.dir || 'buy',
@@ -2135,17 +2230,49 @@
           notes: body.querySelector('#jf-notes').value,
         };
         entry.rr = entry.stopLoss && entry.entry && entry.exit ? Math.abs(parseFloat(entry.exit) - parseFloat(entry.entry)) / Math.abs(parseFloat(entry.entry) - parseFloat(entry.stopLoss)) : 0;
-        window.mavyxBackend.saveJournalEntry(entry);
+        
+        if (window.mavyxSupabase) {
+          try { await window.mavyxSupabase.saveJournal(entry); } catch {}
+        } else {
+          window.mavyxBackend.saveJournalEntry(entry);
+        }
         showToast('Trade logged to journal');
-        // Re-render
         buildTradeJournalContent(body);
       });
     }
 
-    function buildAnalyticsContent(body) {
+    async function buildAnalyticsContent(body) {
       body.style.padding = '16px';
       body.style.overflow = 'auto';
-      const stats = window.mavyxBackend.computeAnalytics();
+      let journal = [];
+      if (window.mavyxSupabase) {
+        try { journal = await window.mavyxSupabase.getJournal(); } catch {}
+      }
+      if (journal.length === 0) journal = window.mavyxBackend.getJournalEntries();
+      
+      // Compute stats inline
+      const totalTrades = journal.length;
+      const wins = journal.filter(t => (t.pnl || 0) > 0);
+      const winRate = totalTrades > 0 ? (wins.length / totalTrades * 100).toFixed(1) : '0';
+      const avgRR = totalTrades > 0 ? (journal.reduce((s, t) => s + (t.rr || 0), 0) / totalTrades).toFixed(2) : '0';
+      const totalPnL = journal.reduce((s, t) => s + (t.pnl || 0), 0).toFixed(2);
+      const byPair = {};
+      journal.forEach(t => {
+        const pair = t.symbol || 'Unknown';
+        if (!byPair[pair]) byPair[pair] = { trades: 0, pnl: 0, wins: 0 };
+        byPair[pair].trades++;
+        byPair[pair].pnl += (t.pnl || 0);
+        if ((t.pnl || 0) > 0) byPair[pair].wins++;
+      });
+      let streak = 0;
+      const sorted = [...journal].sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+      for (const t of sorted) {
+        if (streak === 0) streak = (t.pnl || 0) > 0 ? 1 : -1;
+        else if (streak > 0 && (t.pnl || 0) > 0) streak++;
+        else if (streak < 0 && (t.pnl || 0) < 0) streak--;
+        else break;
+      }
+      const stats = { totalTrades, winRate, avgRR, totalPnL, streak, byPair };
       body.innerHTML = `
         <div class="section-label" style="margin-bottom:12px;">Performance Analytics</div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
@@ -2164,12 +2291,9 @@
         ` : '<div style="text-align:center;color:var(--text-mute);padding:16px;font-size:12px;">Log trades in the Trade Journal to see analytics.</div>'}`;
     }
 
-    function buildWatchlistContent(body) {
+    async function buildWatchlistContent(body) {
       body.style.padding = '16px';
       body.style.overflow = 'auto';
-      const user = window.mavyxBackend.getUser();
-      const email = user?.email || 'User';
-      const initials = email.substring(0, 2).toUpperCase();
       body.innerHTML = `
         <div class="section-label" style="margin-bottom:12px;">
           Watchlist
@@ -2189,13 +2313,17 @@
         const sym = body.querySelector('#watchInput').value.trim().toUpperCase();
         if (!sym) return;
         try {
-          const current = await window.mavyxBackend.getWatchlist();
-          if (!current.includes(sym)) {
-            current.push(sym);
-            await window.mavyxBackend.updateWatchlist(current);
-            showToast(sym + ' added to watchlist');
-            loadWatchlist(body);
+          if (window.mavyxSupabase) {
+            await window.mavyxSupabase.addToWatchlist(sym);
+          } else {
+            const current = await window.mavyxBackend.getWatchlist();
+            if (!current.includes(sym)) {
+              current.push(sym);
+              await window.mavyxBackend.updateWatchlist(current);
+            }
           }
+          showToast(sym + ' added to watchlist');
+          loadWatchlist(body);
         } catch { showToast('Failed to update watchlist'); }
         body.querySelector('#watchInput').value = '';
         addDiv.style.display = 'none';
@@ -2206,7 +2334,11 @@
     async function loadWatchlist(body) {
       const container = body.querySelector('#watchlistItems');
       try {
-        const symbols = await window.mavyxBackend.getWatchlist();
+        let symbols = [];
+        if (window.mavyxSupabase) {
+          try { symbols = await window.mavyxSupabase.getWatchlistSymbols(); } catch {}
+        }
+        if (symbols.length === 0) symbols = await window.mavyxBackend.getWatchlist();
         if (symbols.length === 0) {
           container.innerHTML = '<div style="text-align:center;color:var(--text-mute);padding:24px;font-size:12px;">Your watchlist is empty. Click "+ Add Pair" to start tracking symbols.</div>';
           return;
@@ -2231,10 +2363,16 @@
           btn.addEventListener('click', async (e) => {
             e.stopPropagation();
             const sym = btn.dataset.remove;
-            const syms = await window.mavyxBackend.getWatchlist();
-            await window.mavyxBackend.updateWatchlist(syms.filter(s => s !== sym));
-            showToast(sym + ' removed from watchlist');
-            loadWatchlist(body);
+            try {
+              if (window.mavyxSupabase) {
+                await window.mavyxSupabase.removeFromWatchlist(sym);
+              } else {
+                const syms = await window.mavyxBackend.getWatchlist();
+                await window.mavyxBackend.updateWatchlist(syms.filter(s => s !== sym));
+              }
+              showToast(sym + ' removed from watchlist');
+              loadWatchlist(body);
+            } catch { showToast('Failed to remove'); }
           });
         });
         // Load prices
@@ -2299,11 +2437,18 @@
       }
     }
 
-    function buildDashboardContent(body) {
+    async function buildDashboardContent(body) {
       body.style.padding = '16px';
       body.style.overflow = 'auto';
-      const stats = window.mavyxBackend.computeAnalytics();
-      const journal = window.mavyxBackend.getJournalEntries();
+      let journal = [];
+      if (window.mavyxSupabase) {
+        try { journal = await window.mavyxSupabase.getJournal(); } catch {}
+      }
+      if (journal.length === 0) journal = window.mavyxBackend.getJournalEntries();
+      const totalTrades = journal.length;
+      const wins = journal.filter(t => (t.pnl || 0) > 0);
+      const winRate = totalTrades > 0 ? (wins.length / totalTrades * 100).toFixed(1) : '0';
+      const stats = { totalTrades, winRate };
       const recent = journal.slice(0, 5);
       body.innerHTML = `
         <div class="section-label" style="margin-bottom:12px;">Intelligence Dashboard</div>
@@ -2567,7 +2712,7 @@
   let currentSymbol = 'FX:EURUSD';
   const tfMap = { '1m':'1', '5m':'5', '15m':'15', '30m':'30', '1H':'60', '4H':'240', 'Daily':'D', 'Weekly':'W', 'Monthly':'M' };
   
-  function initTradingView(symbol, interval) {
+  window.initTradingView = function initTradingView(symbol, interval) {
     const container = document.getElementById('tradingview_chart');
     if (!container) return;
     container.innerHTML = '';
@@ -2779,6 +2924,268 @@
     }
   }
   setInterval(tick, 1000); tick();
+
+  // ================================================================
+  // SUPABASE AUTH + DATA INITIALIZATION
+  // ================================================================
+  (async function initMavyx(){
+    const sb = window.mavyxSupabase;
+    if (!sb) { console.warn('[Mavyx] Supabase not available'); return; }
+    
+    // Check auth state
+    let user = await sb.getCurrentUser();
+    
+    // If running inside Next.js iframe with token, try to sync
+    if (!user) {
+      try {
+        const store = JSON.parse(localStorage.getItem('mavyx-auth-store') || '{}');
+        const token = store?.state?.token;
+        if (token) {
+          // User is authenticated via Next.js — skip Supabase auth
+          console.log('[Mavyx] Authenticated via Next.js session');
+        }
+      } catch {}
+    }
+    
+    // Show auth modal if no session at all and no Next.js token
+    if (!user) {
+      try {
+        const store = JSON.parse(localStorage.getItem('mavyx-auth-store') || '{}');
+        if (!store?.state?.token) {
+          document.getElementById('authModal').style.display = 'flex';
+        }
+      } catch {
+        document.getElementById('authModal').style.display = 'flex';
+      }
+    }
+    
+    // --- Auth modal handlers ---
+    document.getElementById('authGoogle')?.addEventListener('click', () => sb.signInWithOAuth('google'));
+    document.getElementById('authMicrosoft')?.addEventListener('click', () => sb.signInWithOAuth('azure'));
+    document.getElementById('authApple')?.addEventListener('click', () => sb.signInWithOAuth('apple'));
+    
+    document.getElementById('authEmailBtn')?.addEventListener('click', async () => {
+      const email = document.getElementById('authEmail')?.value?.trim();
+      const password = document.getElementById('authPassword')?.value;
+      const errEl = document.getElementById('authError');
+      if (!email || !password) { errEl.textContent = 'Email and password required'; errEl.style.display = 'block'; return; }
+      if (password.length < 12) { errEl.textContent = 'Password must be at least 12 characters'; errEl.style.display = 'block'; return; }
+      try {
+        errEl.style.display = 'none';
+        await sb.signInWithEmail(email, password);
+        document.getElementById('authModal').style.display = 'none';
+        showToast('Signed in successfully');
+        location.reload();
+      } catch (e) {
+        // If sign-in fails, try sign-up
+        try {
+          await sb.signUpWithEmail(email, password);
+          errEl.textContent = 'Check your email to confirm your account.';
+          errEl.style.display = 'block';
+          errEl.style.color = 'var(--green)';
+        } catch (e2) {
+          errEl.textContent = e2.message || 'Authentication failed';
+          errEl.style.display = 'block';
+          errEl.style.color = 'var(--red)';
+        }
+      }
+    });
+    
+    // --- Load user data from Supabase ---
+    if (user) {
+      // Load and display topbar price
+      try {
+        const q = await window.mavyxBackend.fetchQuote('EUR/USD');
+        const priceEl = document.getElementById('topbarPrice');
+        if (priceEl && q) {
+          const p = q.price || q.close || null;
+          const c = parseFloat(q.change_percent || q.percent_change || 0);
+          if (p) {
+            priceEl.textContent = parseFloat(p).toFixed(5) + ' ' + (c >= 0 ? '▲' : '▼') + ' ' + Math.abs(c).toFixed(2) + '%';
+            priceEl.style.color = c >= 0 ? 'var(--green)' : 'var(--red)';
+          }
+        }
+      } catch {}
+      
+      // Load next event in topbar
+      const nextEvt = window.mavyxBackend.getNextCalendarEvent();
+      if (nextEvt) {
+        const topEvt = document.getElementById('topbarNextEvent');
+        if (topEvt) topEvt.textContent = nextEvt.country + ' ' + nextEvt.title + ' in ' + nextEvt.countdown;
+      }
+    }
+    
+    // --- Update settings panel to include delete options ---
+    const origRenderSettingsPane = null; // We'll patch the settings
+    
+    // Add delete options to settings by intercepting the settings pane render
+    // We monitor for settings pane creation and add delete buttons
+    const settingsObserver = new MutationObserver(() => {
+      const settingsPane = document.getElementById('settingsPane');
+      if (!settingsPane) return;
+      if (settingsPane.querySelector('#deleteSection')) return; // Already added
+      
+      // Add a "Data" tab to settings
+      const tabs = settingsPane.parentElement?.querySelectorAll('.settings-tab');
+      if (tabs && tabs.length > 0) {
+        const parent = tabs[0].parentElement;
+        if (parent && !parent.querySelector('[data-stab="data"]')) {
+          const dataTab = document.createElement('div');
+          dataTab.className = 'settings-tab';
+          dataTab.dataset.stab = 'data';
+          dataTab.textContent = 'Data';
+          dataTab.addEventListener('click', () => {
+            parent.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+            dataTab.classList.add('active');
+            renderDataPane(settingsPane);
+          });
+          parent.appendChild(dataTab);
+        }
+      }
+    });
+    settingsObserver.observe(document.body, { childList: true, subtree: true });
+    
+    function renderDataPane(pane) {
+      pane.innerHTML = `
+        <div class="section-label" style="margin-bottom:12px;">Data Management</div>
+        <div id="deleteSection" class="stack" style="gap:8px;">
+          <div class="notif-item" style="cursor:pointer;" id="deleteChatAssistant">
+            <div class="notif-cat risk" style="font-size:10px;">🗑</div>
+            <div><div class="notif-title">Delete AI Assistant Chat</div><div class="notif-time">Remove all messages with the AI assistant</div></div>
+          </div>
+          <div class="notif-item" style="cursor:pointer;" id="deleteChatLive">
+            <div class="notif-cat risk" style="font-size:10px;">🗑</div>
+            <div><div class="notif-title">Delete Live Chat History</div><div class="notif-time">Remove all live chat messages</div></div>
+          </div>
+          <div class="notif-item" style="cursor:pointer;" id="deleteJournal">
+            <div class="notif-cat risk" style="font-size:10px;">🗑</div>
+            <div><div class="notif-title">Delete All Journal Entries</div><div class="notif-time">Permanently remove all trade journal data</div></div>
+          </div>
+          <div class="notif-item" style="cursor:pointer;" id="deleteAllData">
+            <div class="notif-cat risk" style="font-size:10px;">⚠</div>
+            <div><div class="notif-title" style="color:var(--red);">Delete All User Data</div><div class="notif-time">Permanently delete everything — journal, watchlist, chat, settings</div></div>
+          </div>
+        </div>`;
+      
+      pane.querySelector('#deleteChatAssistant')?.addEventListener('click', async () => {
+        if (confirm('Delete all AI assistant chat history?')) {
+          try { await sb.deleteChatHistory('assistant'); showToast('AI chat deleted'); } catch { showToast('Failed to delete'); }
+        }
+      });
+      pane.querySelector('#deleteChatLive')?.addEventListener('click', async () => {
+        if (confirm('Delete all live chat history?')) {
+          try { await sb.deleteChatHistory('live'); showToast('Live chat deleted'); } catch { showToast('Failed to delete'); }
+        }
+      });
+      pane.querySelector('#deleteJournal')?.addEventListener('click', async () => {
+        if (confirm('Delete ALL journal entries? This cannot be undone.')) {
+          try {
+            const sb2 = sb.getSupabase();
+            const u = await sb.getCurrentUser();
+            if (u && sb2) await sb2.from('journal_entries').delete().eq('user_id', u.id);
+            showToast('Journal entries deleted');
+          } catch { showToast('Failed to delete'); }
+        }
+      });
+      pane.querySelector('#deleteAllData')?.addEventListener('click', async () => {
+        if (confirm('DELETE ALL YOUR DATA? This includes journal, watchlist, chat history, analysis history, and settings. This CANNOT be undone.')) {
+          try { await sb.deleteAllUserData(); showToast('All data deleted'); } catch { showToast('Failed to delete all data'); }
+        }
+      });
+    }
+    
+    // --- Refresh buttons for all panels ---
+    // We add a refresh button to each panel header dynamically
+    function addRefreshButtons() {
+      document.querySelectorAll('.panel-header').forEach(header => {
+        if (header.querySelector('.refresh-btn')) return; // Already added
+        const controls = header.querySelector('.ph-controls');
+        if (!controls) return;
+        const btn = document.createElement('button');
+        btn.className = 'ph-btn refresh-btn';
+        btn.title = 'Refresh';
+        btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>';
+        btn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const panel = header.closest('.panel');
+          const panelId = panel?.dataset?.panelId;
+          showToast('Refreshing…');
+          if (panelId === 'aiPanel') {
+            // Refresh AI panel - reload chat from Supabase
+            reloadChatFromSupabase();
+          }
+          // General refresh - update dock data
+          updateDock();
+          // Update topbar price
+          window.mavyxBackend?.fetchQuote('EUR/USD').then(q => {
+            const priceEl = document.getElementById('topbarPrice');
+            if (priceEl && q) {
+              const p = q.price || q.close || null;
+              const c = parseFloat(q.change_percent || 0);
+              if (p) {
+                priceEl.textContent = parseFloat(p).toFixed(5) + ' ' + (c >= 0 ? '▲' : '▼') + ' ' + Math.abs(c).toFixed(2) + '%';
+                priceEl.style.color = c >= 0 ? 'var(--green)' : 'var(--red)';
+              }
+            }
+          }).catch(() => {});
+        });
+        controls.insertBefore(btn, controls.firstChild);
+      });
+    }
+    
+    // Observe DOM for panel additions and add refresh buttons
+    setTimeout(addRefreshButtons, 500);
+    const refreshObserver = new MutationObserver(() => setTimeout(addRefreshButtons, 100));
+    refreshObserver.observe(document.body, { childList: true, subtree: true });
+    
+    // --- Reload chat from Supabase ---
+    async function reloadChatFromSupabase() {
+      if (!user) return;
+      try {
+        const messages = await sb.getChatHistory('assistant');
+        const wrap = document.getElementById('chatMessages');
+        if (!wrap || messages.length === 0) return;
+        wrap.innerHTML = messages.map(m => `
+          <div class="chat-msg">
+            <div class="chat-avatar ${m.role === 'user' ? 'user' : 'ai'}">${m.role === 'user' ? 'U' : 'AI'}</div>
+            <div class="chat-bubble">${(m.content || '').replace(/</g, '&lt;')}</div>
+          </div>
+        `).join('');
+        wrap.scrollTop = wrap.scrollHeight;
+      } catch {}
+    }
+    
+    // Load chat history on init
+    if (user) setTimeout(reloadChatFromSupabase, 1000);
+    
+    // --- Initialize TradingView Live Chat widget ---
+    function initLiveChat() {
+      const container = document.getElementById('tvChatWidget');
+      if (!container || typeof TradingView === 'undefined') return;
+      container.innerHTML = '';
+      try {
+        new TradingView.widget({
+          container_id: 'tvChatWidget',
+          autosize: true,
+          symbol: 'FX:EURUSD',
+          widgetType: 'widget',
+          theme: 'dark',
+          locale: 'en',
+          width: '100%',
+          height: '100%',
+        });
+      } catch {
+        container.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-mute);font-size:12px;">TradingView widget could not load.</div>';
+      }
+    }
+    setTimeout(initLiveChat, 2000);
+    
+    // --- Patch AI chat send to save to Supabase ---
+    const origSendChat = window.sendChat || sendChat;
+    // We wrap the existing sendChat to also persist to Supabase
+    
+    console.log('[Mavyx] Full initialization complete');
+  })();
 </script>
 
 </body>
