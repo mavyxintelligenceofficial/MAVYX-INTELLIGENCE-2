@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, FormEvent, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { useAuthStore } from '@/features/auth/store';
@@ -13,17 +13,7 @@ import '@/app/mavyx-ui.css';
 
 const TradingViewChart = dynamic(() => import('@/components/CandlestickChart'), { ssr: false });
 
-const TIMEFRAMES = [
-  { value: '1m', label: '1m' },
-  { value: '5m', label: '5m' },
-  { value: '15m', label: '15m' },
-  { value: '30m', label: '30m' },
-  { value: '1h', label: '1H' },
-  { value: '4h', label: '4H' },
-  { value: '1d', label: 'Daily' },
-  { value: '1w', label: 'Weekly' },
-  { value: '1M', label: 'Monthly' },
-];
+const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1H', '4H', 'Daily', 'Weekly', 'Monthly'];
 
 const OVERLAYS = [
   { label: 'Market Structure', color: '#D4AF37', on: true },
@@ -38,6 +28,20 @@ const OVERLAYS = [
   { label: 'Invalidation Levels', color: '#8B8D93', on: false },
 ];
 
+// Toast helper
+function showToast(msg: string) {
+  const stack = document.getElementById('toastStack');
+  if (!stack) return;
+  const t = document.createElement('div');
+  t.className = 'toast';
+  t.innerHTML = `<span class="dot"></span>${msg}`;
+  stack.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'toast-out 0.2s ease forwards';
+    setTimeout(() => t.remove(), 200);
+  }, 2600);
+}
+
 export default function WorkspacePage() {
   const router = useRouter();
   const { token, isHydrated, hydrate, user, logout } = useAuthStore();
@@ -50,6 +54,12 @@ export default function WorkspacePage() {
   const [chatInput, setChatInput] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  // Dropdowns
+  const [bellOpen, setBellOpen] = useState(false);
+  const [windowOpen, setWindowOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
 
   useEffect(() => { hydrate(); }, [hydrate]);
   useEffect(() => { if (isHydrated && !token) router.replace('/login'); }, [isHydrated, token, router]);
@@ -68,7 +78,7 @@ export default function WorkspacePage() {
     getQuote(token, ai.symbol).then(setQuote).catch(() => {});
     const interval = setInterval(() => {
       getQuote(token, ai.symbol).then(setQuote).catch(() => {});
-    }, 5000);
+    }, 30000);
     return () => clearInterval(interval);
   }, [token, ai.symbol]);
 
@@ -78,12 +88,15 @@ export default function WorkspacePage() {
   async function handleAnalyze() {
     if (!token || isAnalyzing) return;
     setIsAnalyzing(true);
+    showToast(`Running 14-agent analysis on ${ai.symbol} ${ai.timeframe}…`);
     try {
       const data = await analyzeSymbol(token, ai.symbol, ai.timeframe);
       ai.setResult(data);
       setActiveTab('brief');
+      showToast('Analysis complete — Executive Brief updated');
     } catch (err: any) {
       ai.setError(err?.message || 'Analysis failed');
+      showToast('Analysis failed');
     } finally { setIsAnalyzing(false); }
   }
 
@@ -104,24 +117,30 @@ export default function WorkspacePage() {
 
   function toggleOverlay(index: number) {
     setOverlays(prev => prev.map((o, i) => i === index ? { ...o, on: !o.on } : o));
+    const label = overlays[index].label;
+    showToast(`${overlays[index].on ? 'Disabled' : 'Enabled'}: ${label}`);
   }
+
+  function closeAllDropdowns() { setBellOpen(false); setWindowOpen(false); setHelpOpen(false); setAvatarOpen(false); }
 
   if (!isHydrated || !token) return null;
 
   const initials = (user?.fullName || user?.email || 'U').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
 
   return (
-    <div className="app-shell">
+    <div style={{ display: 'grid', gridTemplateRows: '56px 1fr 32px', height: '100vh', background: 'var(--bg)' }}>
       {/* ═══ TOP INTELLIGENCE BAR ═══ */}
       <header className="topbar">
-        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
           <Image src="/brand/Mavyx-LOGO.png" alt="Mavyx" width={22} height={22} />
           <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
         </div>
 
-        <div className="topbar-pair" style={{ flexShrink: 0 }}>
-          <span className="sym">{ai.symbol}</span>
-          <span className="px">{quote?.price?.toString() || '—'}</span>
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: '0.3px' }}>{ai.symbol}</div>
+          <div style={{ fontSize: 11, color: quote?.price ? 'var(--green)' : 'var(--text-mute)', fontWeight: 600 }}>
+            {quote?.price?.toString() || '—'}
+          </div>
         </div>
 
         <div className="topbar-chips">
@@ -131,31 +150,56 @@ export default function WorkspacePage() {
           <div className="topbar-chip"><span className="dot amber" /> Market Open</div>
         </div>
 
-        <div className="search-bar">
+        <div className="search-bar" onClick={() => showToast('Search: type to find markets, journal, docs')} style={{ cursor: 'pointer' }}>
           <span>🔍</span>
           <span>Search markets, journal, docs…</span>
-          <kbd style={{ marginLeft: 'auto', fontSize: 10, border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', color: 'var(--text-mute)' }}>⌘K</kbd>
+          <kbd>⌘K</kbd>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div className="ai-status-pill">
-            <span className="pulse" />
-            AI Ready
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+          <div className="ai-status-pill"><span className="pulse" /> AI Ready</div>
+
+          {/* Notifications */}
+          <div style={{ position: 'relative' }}>
+            <button className="icon-btn" onClick={() => { closeAllDropdowns(); setBellOpen(!bellOpen); }}>
+              🔔<span className="badge-dot" />
+            </button>
+            {bellOpen && (
+              <div className="dropdown open" style={{ right: 0, top: 44, width: 280 }}>
+                <div className="dropdown-title">Notifications</div>
+                <div className="notif-item"><div className="notif-cat risk">!</div><div><div className="notif-title">Risk: Monitor open positions</div><div className="notif-time">Just now · Risk</div></div></div>
+                <div className="notif-item"><div className="notif-cat ai">AI</div><div><div className="notif-title">AI agents ready for analysis</div><div className="notif-time">Just now · AI</div></div></div>
+                <div className="notif-item"><div className="notif-cat market">M</div><div><div className="notif-title">{ai.symbol} price update</div><div className="notif-time">Just now · Market</div></div></div>
+              </div>
+            )}
           </div>
-          <div className="avatar-btn">{initials}</div>
+
+          {/* Avatar */}
+          <div style={{ position: 'relative' }}>
+            <button className="avatar-btn" onClick={() => { closeAllDropdowns(); setAvatarOpen(!avatarOpen); }}>
+              {initials}
+            </button>
+            {avatarOpen && (
+              <div className="dropdown open" style={{ right: 0, top: 44, width: 200 }}>
+                <div className="dropdown-title">{user?.fullName || 'User'}</div>
+                <a className="dropdown-link" onClick={() => { router.push('/settings'); closeAllDropdowns(); }}>⚙ Settings</a>
+                <div className="dropdown-divider" />
+                <a className="dropdown-link" onClick={() => { logout(); router.push('/login'); closeAllDropdowns(); }}>⏻ Logout</a>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* ═══ MAIN: Sidebar / Workspace / AI Panel ═══ */}
-      <div className="app-main">
+      {/* ═══ MAIN CONTENT ═══ */}
+      <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr 380px', minHeight: 0 }} onClick={closeAllDropdowns}>
+
         {/* ─── Sidebar ──────────────────────────────────────────── */}
         <nav className="sidebar">
           <div className="nav-group-label">Intelligence</div>
           <a className="nav-item" onClick={() => router.push('/dashboard')}><span>▦</span> Dashboard</a>
           <a className="nav-item" onClick={() => router.push('/markets')}><span>◇</span> Markets</a>
           <a className="nav-item active"><span>◈</span> Workspace</a>
-          <a className="nav-item" onClick={() => setActiveTab('brief')}><span>📄</span> Executive Brief</a>
-          <a className="nav-item" onClick={() => setActiveTab('chat')}><span>💬</span> AI Chat</a>
 
           <div className="nav-group-label">Records</div>
           <a className="nav-item" onClick={() => router.push('/journal')}><span>📖</span> Trade Journal</a>
@@ -169,17 +213,16 @@ export default function WorkspacePage() {
           </div>
         </nav>
 
-        {/* ─── Executive Workspace (Chart) ──────────────────────── */}
+        {/* ─── Workspace (Chart + Trade Controls) ────────────────── */}
         <main className="workspace">
           {/* Chart Toolbar */}
           <div className="chart-toolbar">
-            <span style={{ fontSize: 11, color: 'var(--text-mute)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px' }}>Timeframe</span>
+            <span className="tb-title">Timeframe</span>
             <div className="tf-group">
               {TIMEFRAMES.map(tf => (
-                <button key={tf.value}
-                  className={`tf-btn ${ai.timeframe === tf.value ? 'active' : ''}`}
-                  onClick={() => ai.setTimeframe(tf.value)}>
-                  {tf.label}
+                <button key={tf} className={`tf-btn ${ai.timeframe === tf.toLowerCase() ? 'active' : ''}`}
+                  onClick={() => { ai.setTimeframe(tf.toLowerCase()); showToast(`Timeframe: ${tf}`); }}>
+                  {tf}
                 </button>
               ))}
             </div>
@@ -192,13 +235,13 @@ export default function WorkspacePage() {
           <div className="overlay-toggles">
             {overlays.map((o, i) => (
               <span key={o.label} className={`chip ${o.on ? 'on' : ''}`} onClick={() => toggleOverlay(i)}>
-                <span style={{ width: 7, height: 7, borderRadius: 2, background: o.color }} />
+                <span className="sw" style={{ background: o.color }} />
                 {o.label}
               </span>
             ))}
           </div>
 
-          {/* Chart Area */}
+          {/* Chart */}
           <div className="chart-area">
             <TradingViewChart symbol={ai.symbol} />
           </div>
@@ -225,14 +268,14 @@ export default function WorkspacePage() {
                 </div>
               </>
             ) : (
-              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 8, fontSize: 12, color: 'var(--text-mute)' }}>
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: 12, fontSize: 12, color: 'var(--text-mute)' }}>
                 Run an analysis to see suggested trade levels
               </div>
             )}
           </div>
         </main>
 
-        {/* ─── AI Intelligence Panel ────────────────────────────── */}
+        {/* ─── AI Intelligence Panel ─────────────────────────────── */}
         <aside className="ai-panel">
           {/* Tabs */}
           <div className="ai-tabs">
@@ -263,7 +306,7 @@ export default function WorkspacePage() {
         </aside>
       </div>
 
-      {/* ═══ BOTTOM INTELLIGENCE DOCK ═══ */}
+      {/* ═══ BOTTOM DOCK ═══ */}
       <footer className="dock">
         <div className="dock-item up">DXY <b>▲ 104.21</b></div>
         <div className="dock-item down">SPX <b>▼ 5,412</b></div>
@@ -273,6 +316,9 @@ export default function WorkspacePage() {
         <div className="dock-item">Agents Online <b>14/14</b></div>
         <div className="dock-item"><span className="dot" style={{ display: 'inline-block' }} /> All Systems Nominal</div>
       </footer>
+
+      {/* Toast Stack */}
+      <div id="toastStack" className="toast-stack" />
     </div>
   );
 }
@@ -305,13 +351,11 @@ function ExecutiveBrief({ result, isLoading, selectedAgent, setSelectedAgent }: 
     );
   }
 
-  const total = (result.agent_consensus?.bullish || 0) + (result.agent_consensus?.bearish || 0) + (result.agent_consensus?.neutral || 0);
   const r = 36, c = 2 * Math.PI * r, offset = c - ((result.confidence || 0) / 100) * c;
 
   return (
     <>
-      {/* Header */}
-      <div className="brief-head" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontSize: 15, fontWeight: 800 }}>Executive Summary</span>
         <span className="bias-badge">
           {result.recommendation === 'buy' ? 'Bullish Bias' : result.recommendation === 'sell' ? 'Bearish Bias' : result.recommendation === 'wait' ? 'Wait' : 'No Trade'}
@@ -334,17 +378,10 @@ function ExecutiveBrief({ result, isLoading, selectedAgent, setSelectedAgent }: 
             <span className="cap">Confidence</span>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-soft)' }}>
-            <span>Evidence Strength</span><b style={{ color: 'var(--text)' }}>{result.successful_agents}/{result.total_agents} agents</b>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-soft)' }}>
-            <span>Processing Time</span><b style={{ color: 'var(--text)' }}>{result.processing_time_ms}ms</b>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-soft)' }}>
-            <span>Consensus</span>
-            <b style={{ color: 'var(--green)' }}>{result.agent_consensus?.bullish || 0}B · {result.agent_consensus?.bearish || 0}B · {result.agent_consensus?.neutral || 0}N</b>
-          </div>
+        <div className="conf-meta">
+          <div className="conf-row"><span>Evidence Strength</span><b>{result.successful_agents}/{result.total_agents} agents</b></div>
+          <div className="conf-row"><span>Processing Time</span><b>{result.processing_time_ms}ms</b></div>
+          <div className="conf-row"><span>Consensus</span><b>{result.agent_consensus?.bullish || 0}B · {result.agent_consensus?.bearish || 0}B · {result.agent_consensus?.neutral || 0}N</b></div>
         </div>
       </div>
 
@@ -353,35 +390,23 @@ function ExecutiveBrief({ result, isLoading, selectedAgent, setSelectedAgent }: 
         <div className="split-cases">
           <div className="case-card bull">
             <div className="case-title">Supporting Evidence</div>
-            <ul>
-              {result.key_evidence.slice(0, 3).map((e: string, i: number) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
+            <ul>{result.key_evidence.slice(0, 3).map((e: string, i: number) => <li key={i}>{e}</li>)}</ul>
           </div>
           <div className="case-card bear">
             <div className="case-title">Risk Factors</div>
-            <ul>
-              {result.risk_warnings?.slice(0, 3).map((w: string, i: number) => (
-                <li key={i}>{w}</li>
-              ))}
-            </ul>
+            <ul>{result.risk_warnings?.slice(0, 3).map((w: string, i: number) => <li key={i}>{w}</li>)}</ul>
           </div>
         </div>
       )}
 
       {/* Info Lines */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-        {result.suggested_action?.entry_zone && (
+      {result.suggested_action?.entry_zone && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           <div className="info-line"><span>Suggested Entry</span><b>{result.suggested_action.entry_zone}</b></div>
-        )}
-        {result.suggested_action?.stop_loss && (
-          <div className="info-line danger"><span>Stop Loss</span><b>{result.suggested_action.stop_loss}</b></div>
-        )}
-        {result.suggested_action?.take_profit_1 && (
-          <div className="info-line"><span>Target</span><b>{result.suggested_action.take_profit_1}</b></div>
-        )}
-      </div>
+          {result.suggested_action.stop_loss && <div className="info-line danger"><span>Stop Loss</span><b>{result.suggested_action.stop_loss}</b></div>}
+          {result.suggested_action.take_profit_1 && <div className="info-line"><span>Target</span><b>{result.suggested_action.take_profit_1}</b></div>}
+        </div>
+      )}
 
       {/* Agent Reasoning Panel */}
       {selectedAgent && (
@@ -403,26 +428,21 @@ function ExecutiveBrief({ result, isLoading, selectedAgent, setSelectedAgent }: 
 
 function EvidenceTab({ result, setSelectedAgent, setActiveTab }: any) {
   if (!result?.agent_breakdown?.length) {
-    return (
-      <div style={{ textAlign: 'center', padding: '40px 0' }}>
-        <p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Run an analysis to see evidence cards</p>
-      </div>
-    );
+    return <div style={{ textAlign: 'center', padding: '40px 0' }}><p style={{ fontSize: 12, color: 'var(--text-mute)' }}>Run an analysis to see evidence cards</p></div>;
   }
-
   return (
     <>
       <div className="section-label">Specialist Evidence <span>{result.agent_breakdown.length} Agents</span></div>
       <div className="evidence-grid">
         {result.agent_breakdown.map((agent: any) => (
           <div key={agent.agent_id} className="ev-card" onClick={() => { setSelectedAgent(agent); setActiveTab('brief'); }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
-              <span style={{ fontSize: 11, fontWeight: 700 }}>{formatAgent(agent.agent_id)}</span>
+            <div className="ev-top">
+              <span className="ev-name">{formatAgent(agent.agent_id)}</span>
               <span className={`ev-status ${agent.signal === 'bullish' ? 'validated' : agent.signal === 'bearish' ? 'conflict' : 'uncertain'}`} />
             </div>
-            <div style={{ fontSize: 10, color: 'var(--text-mute)' }}>Confidence {agent.confidence}%</div>
+            <div className="ev-conf">Confidence {agent.confidence}%</div>
             <div className="ev-bar"><span style={{ width: `${agent.confidence}%` }} /></div>
-            <div style={{ fontSize: 10, color: 'var(--text-soft)', lineHeight: 1.4 }}>{agent.summary?.substring(0, 80)}…</div>
+            <div className="ev-finding">{agent.summary?.substring(0, 80)}…</div>
           </div>
         ))}
       </div>
@@ -455,14 +475,8 @@ function AlertsTab() {
   return (
     <>
       <div className="section-label">Notifications</div>
-      <div className="notif-item">
-        <div className="notif-cat risk">!</div>
-        <div><div style={{ fontSize: 11, fontWeight: 700 }}>Risk: Monitor open positions</div><div style={{ fontSize: 10, color: 'var(--text-mute)' }}>Just now · Risk</div></div>
-      </div>
-      <div className="notif-item">
-        <div className="notif-cat ai">AI</div>
-        <div><div style={{ fontSize: 11, fontWeight: 700 }}>AI agents ready for analysis</div><div style={{ fontSize: 10, color: 'var(--text-mute)' }}>Just now · AI</div></div>
-      </div>
+      <div className="notif-item"><div className="notif-cat risk">!</div><div><div className="notif-title">Risk: Monitor open positions</div><div className="notif-time">Just now · Risk</div></div></div>
+      <div className="notif-item"><div className="notif-cat ai">AI</div><div><div className="notif-title">AI agents ready for analysis</div><div className="notif-time">Just now · AI</div></div></div>
     </>
   );
 }
