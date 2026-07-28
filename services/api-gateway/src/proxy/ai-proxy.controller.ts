@@ -1,8 +1,8 @@
-import { Controller, Post, Get, Body, Req, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Post, Get, Body, Req, Res, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 
 /**
  * AI Service proxy — forwards /ai/* requests to the Python model-service
@@ -37,18 +37,39 @@ export class AiProxyController {
   }
 
   @Post('analyze/stream')
-  async analyzeStream(@Body() body: any, @Req() request: Request) {
-    try {
-      const response = await firstValueFrom(
-        this.httpService.post(`${this.aiServiceUrl}/analyze/stream`, body, {
-          headers: { Authorization: request.headers.authorization || '' },
-          responseType: 'stream',
-        }),
-      );
-      return response.data;
-    } catch (err) {
-      return this.handleError(err);
-    }
+  async analyzeStream(@Body() body: any, @Req() request: Request, @Res() response: Response) {
+    const url = `${this.aiServiceUrl}/analyze/stream`;
+    const postData = JSON.stringify(body);
+    const parsedUrl = new URL(url);
+    
+    const proxyReq = http.request({
+      hostname: parsedUrl.hostname,
+      port: parsedUrl.port,
+      path: parsedUrl.pathname,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData),
+        'Authorization': request.headers.authorization || '',
+      },
+    }, (proxyRes) => {
+      response.writeHead(proxyRes.statusCode || 200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
+      });
+      proxyRes.pipe(response);
+    });
+    
+    proxyReq.on('error', () => {
+      if (!response.headersSent) {
+        response.status(502).json({ message: 'AI service unreachable' });
+      }
+    });
+    
+    proxyReq.write(postData);
+    proxyReq.end();
   }
 
   @Post('assistant')

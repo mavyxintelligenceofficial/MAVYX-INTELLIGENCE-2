@@ -66,42 +66,68 @@ async function runAnalysis(symbol, timeframe) {
 
 /**
  * Run analysis with SSE for Live Activity Feed (Rebuild Spec Section 8).
- * Callbacks: onAgentStatus, onComplete, onError, onEnd
+ * Tries AI service directly first, falls back to gateway, then regular analysis.
  */
 function runAnalysisStream(symbol, timeframe, callbacks) {
   const token = getToken();
   const controller = new AbortController();
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  const body = JSON.stringify({ symbol: symbol, timeframe: timeframe });
   
-  fetch(`${API_BASE}/ai/analyze/stream`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': token ? `Bearer ${token}` : '' },
-    body: JSON.stringify({ symbol, timeframe }),
-    signal: controller.signal,
-  }).then(async response => {
-    if (!response.ok) { callbacks.onError?.('Stream failed'); return; }
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-    let buffer = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
+  // Try AI service directly (port 4004) for SSE
+  fetch('http://localhost:4004/analyze/stream', {
+    method: 'POST', headers: headers, body: body, signal: controller.signal,
+  }).then(function(response) {
+    if (!response.ok) throw new Error('Direct stream failed');
+    processSSEStream(response, callbacks);
+  }).catch(function() {
+    // Fallback: try gateway
+    fetch(API_BASE + '/ai/analyze/stream', {
+      method: 'POST', headers: headers, body: body, signal: controller.signal,
+    }).then(function(response) {
+      if (!response.ok) throw new Error('Gateway stream failed');
+      processSSEStream(response, callbacks);
+    }).catch(function() {
+      // Final fallback: regular analysis (no live feed)
+      runAnalysis(symbol, timeframe).then(function(result) {
+        callbacks.onComplete && callbacks.onComplete(result);
+        callbacks.onEnd && callbacks.onEnd();
+      }).catch(function(e) {
+        callbacks.onError && callbacks.onError(e.message || 'Analysis failed');
+        callbacks.onEnd && callbacks.onEnd();
+      });
+    });
+  });
+  
+  return { abort: function(){ controller.abort(); } };
+}
+
+function processSSEStream(response, callbacks) {
+  var reader = response.body.getReader();
+  var decoder = new TextDecoder();
+  var buffer = '';
+  function read() {
+    reader.read().then(function(result) {
+      if (result.done) { callbacks.onEnd && callbacks.onEnd(); return; }
+      buffer += decoder.decode(result.value, { stream: true });
+      var lines = buffer.split('\n');
       buffer = lines.pop();
-      for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
+      for (var i = 0; i < lines.length; i++) {
+        var line = lines[i];
+        if (line.indexOf('data: ') !== 0) continue;
         try {
-          const event = JSON.parse(line.slice(6));
-          if (event.event === 'agent_status') callbacks.onAgentStatus?.(event);
-          else if (event.event === 'analysis_complete') callbacks.onComplete?.(event.result);
-          else if (event.event === 'analysis_error') callbacks.onError?.(event.error);
-          else if (event.event === 'stream_end') { callbacks.onEnd?.(); return; }
-        } catch {}
+          var event = JSON.parse(line.slice(6));
+          if (event.event === 'agent_status') callbacks.onAgentStatus && callbacks.onAgentStatus(event);
+          else if (event.event === 'analysis_complete') callbacks.onComplete && callbacks.onComplete(event.result);
+          else if (event.event === 'analysis_error') callbacks.onError && callbacks.onError(event.error);
+          else if (event.event === 'stream_end') { callbacks.onEnd && callbacks.onEnd(); return; }
+        } catch(e) {}
       }
-    }
-  }).catch(err => { if (err.name !== 'AbortError') callbacks.onError?.(err.message); });
-  
-  return { abort: () => controller.abort() };
+      read();
+    }).catch(function(e) { callbacks.onError && callbacks.onError(e.message); callbacks.onEnd && callbacks.onEnd(); });
+  }
+  read();
 }
 
 async function fetchAnalysisHistory() {
