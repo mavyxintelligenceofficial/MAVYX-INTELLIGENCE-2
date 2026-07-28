@@ -1203,84 +1203,103 @@
     const conf = result.confidence || 0;
     const circumference = 2 * Math.PI * 36;
     const offset = circumference - (conf / 100) * circumference;
-    const ringFill = document.querySelector(".ring-fill");
+    const ringFill = document.querySelector('.ring-fill');
     if (ringFill) {
-      ringFill.setAttribute("stroke-dasharray", circumference.toString());
-      ringFill.setAttribute("stroke-dashoffset", offset.toString());
+      ringFill.setAttribute('stroke-dasharray', circumference.toString());
+      ringFill.setAttribute('stroke-dashoffset', offset.toString());
     }
-    const ringNum = document.getElementById("briefConfNum");
-    if (ringNum) ringNum.textContent = Math.round(conf * 100) + "%";
-    document.getElementById("briefRunPrompt").style.display = "none";
-    document.getElementById("briefConfidenceBlock").style.opacity = "1";
-    const biasBadge = document.getElementById("briefBias");
+    const ringNum = document.getElementById('briefConfNum');
+    if (ringNum) ringNum.textContent = Math.round(conf * 100) + '%';
+    document.getElementById('briefRunPrompt').style.display = 'none';
+    document.getElementById('briefConfidenceBlock').style.opacity = '1';
+
+    const biasBadge = document.getElementById('briefBias');
     if (biasBadge) {
-      const rec = result.recommendation || "wait";
-      const labels = {buy:"Bullish Bias",sell:"Bearish Bias",wait:"Wait",no_trade:"No Trade"};
+      const rec = result.recommendation || 'wait';
+      const labels = {buy:'Bullish Bias',sell:'Bearish Bias',wait:'Wait',no_trade:'No Trade'};
       biasBadge.textContent = labels[rec] || rec.toUpperCase();
-      const colors = {buy:"var(--green)",sell:"var(--red)",wait:"var(--orange)",no_trade:"var(--gray)"};
-      biasBadge.style.color = colors[rec] || "var(--text)";
-      biasBadge.style.borderColor = colors[rec] || "var(--border)";
-      biasBadge.style.background = rec==="buy"?"var(--green-dim)":rec==="sell"?"var(--red-dim)":rec==="wait"?"var(--orange-dim)":"var(--bg-panel)";
+      const colors = {buy:'var(--green)',sell:'var(--red)',wait:'var(--orange)',no_trade:'var(--gray)'};
+      biasBadge.style.color = colors[rec] || 'var(--text)';
+      biasBadge.style.borderColor = colors[rec] || 'var(--border)';
+      biasBadge.style.background = rec==='buy'?'var(--green-dim)':rec==='sell'?'var(--red-dim)':rec==='wait'?'var(--orange-dim)':'var(--bg-panel)';
     }
-    const summaryEl = document.getElementById("briefSummary");
+
+    const summaryEl = document.getElementById('briefSummary');
     if (summaryEl && result.executive_summary) {
       summaryEl.textContent = result.executive_summary;
-      summaryEl.style.textAlign = "left";
-      summaryEl.style.padding = "0";
-      summaryEl.style.color = "var(--text-soft)";
+      summaryEl.style.textAlign = 'left';
+      summaryEl.style.padding = '0';
+      summaryEl.style.color = 'var(--text-soft)';
     }
-    const strengthEl = document.getElementById("briefStrength");
-    const trendEl = document.getElementById("briefTrend");
-    const relEl = document.getElementById("briefReliability");
-    if (strengthEl) strengthEl.textContent = (result.successful_agents||0)+"/"+(result.total_agents||0)+" agents";
-    if (trendEl) trendEl.textContent = (result.processing_time_ms||0)+"ms processing";
-    if (relEl) { const c = result.agent_consensus||{}; relEl.textContent = (c.bullish||0)+"B "+(c.bearish||0)+"B "+(c.neutral||0)+"N"; }
-    const bullList = document.getElementById("briefBullList");
-    const bearList = document.getElementById("briefBearList");
+
+    const strengthEl = document.getElementById('briefStrength');
+    const trendEl = document.getElementById('briefTrend');
+    const relEl = document.getElementById('briefReliability');
+    if (strengthEl) strengthEl.textContent = (result.successful_agents||0)+'/'+(result.total_agents||0)+' agents';
+    if (trendEl) trendEl.textContent = (result.processing_time_ms||0)+'ms processing';
+    if (relEl) { const c = result.agent_consensus||{}; relEl.textContent = (c.bullish||0)+'B '+(c.bearish||0)+'B '+(c.neutral||0)+'N'; }
+
+    const bullList = document.getElementById('briefBullList');
+    const bearList = document.getElementById('briefBearList');
     if (bullList && result.bull_case) {
-      const cases = Array.isArray(result.bull_case)?result.bull_case:[result.bull_case];
-      bullList.innerHTML = cases.map(c=>"<li>"+c+"</li>").join("") || "<li>+</li>";
+      const cases = Array.isArray(result.bull_case) ? result.bull_case : [result.bull_case];
+      bullList.innerHTML = cases.map(function(c){ return '<li>'+c+'</li>'; }).join('') || '<li>—</li>';
     }
     if (bearList && result.bear_case) {
-      const cases = Array.isArray(result.bear_case)?result.bear_case:[result.bear_case];
-      bearList.innerHTML = cases.map(c=>"<li>"+c+"</li>").join("") || "<li>+</li>";
+      const cases = Array.isArray(result.bear_case) ? result.bear_case : [result.bear_case];
+      bearList.innerHTML = cases.map(function(c){ return '<li>'+c+'</li>'; }).join('') || '<li>—</li>';
     }
-    const riskEl = document.getElementById("briefRisk");
-    const invEl = document.getElementById("briefInvalidation");
-    const recEl = document.getElementById("briefRecommended");
-    const altEl = document.getElementById("briefAlternative");
-    if (riskEl) riskEl.textContent = result.risk_assessment || "+";
-    if (invEl) invEl.textContent = result.invalidation_price || "+";
-    if (recEl) recEl.textContent = result.recommended_scenario || "+";
-    if (altEl) altEl.textContent = result.alternative_scenario || "+";
-    const agents = result.full_agent_outputs || result.agent_breakdown || [];
-    const grid = document.getElementById("evidenceGrid");
-    const countEl = document.getElementById("evidenceAgentCount");
+
+    document.getElementById('briefRisk').textContent = result.risk_assessment || '—';
+    document.getElementById('briefInvalidation').textContent = result.invalidation_price || '—';
+    document.getElementById('briefRecommended').textContent = result.recommended_scenario || '—';
+    document.getElementById('briefAlternative').textContent = result.alternative_scenario || '—';
+
+    // Trade Plan
+    if (result.suggested_action) {
+      var sa = result.suggested_action;
+      if (sa.entry_zone) { document.getElementById('tpEntry').textContent = sa.entry_zone; document.getElementById('tpEntrySub').textContent = sa.entry_reason || ''; }
+      if (sa.stop_loss) { document.getElementById('tpStop').textContent = sa.stop_loss; document.getElementById('tpStopSub').textContent = sa.stop_reason || ''; }
+      if (sa.take_profit_1) { document.getElementById('tpTarget').textContent = sa.take_profit_1; document.getElementById('tpTargetSub').textContent = sa.target_reason || ''; }
+      document.getElementById('tpRR').textContent = sa.risk_reward || (Math.round(conf*100)+'%');
+    }
+
+    // Evidence Grid
+    var agents = result.full_agent_outputs || result.agent_breakdown || [];
+    var grid = document.getElementById('evidenceGrid');
+    var countEl = document.getElementById('evidenceAgentCount');
     if (grid && agents.length > 0) {
-      countEl.textContent = agents.length + " Agents";
-      grid.innerHTML = agents.map(a => {
-        const cv = Math.round((a.confidence||0)*100);
-        const st = cv>=70?"validated":cv>=45?"uncertain":"conflict";
-        const nm = a.agent_id||a.agent||"Agent";
-        const sm = a.summary||a.reasoning||"+";
-        const suf = a.data_sufficient!==false;
-        const sig = a.signal||a.bias||"neutral";
-        return "<div class="ev-card" data-agent=""+nm.substring(0,2).toUpperCase()+"" data-name=""+nm+"" data-mission="Signal: "+sig+"" data-obs=""+sm.replace(/"/g,"&quot;")+"" data-evi=""+((a.key_findings||[]).join(". ")).replace(/"/g,"&quot;")+"" data-contra=""+((a.risk_assessment||"+").replace(/"/g,"&quot;"))+"" data-lim=""+((a.limitations||[]).join(". ")).replace(/"/g,"&quot;")+"" data-conc=""+sm.replace(/"/g,"&quot;")+""><div class="ev-top"><span class="ev-name">"+nm+"</span><span class="ev-status "+st+""></span></div><div class="ev-conf">"+(suf?"Confidence "+cv+"%":"Insufficient Data")+" "+sig+"</div><div class="ev-bar"><span style="width:"+cv+"%"></span></div><div class="ev-finding">"+sm.substring(0,80)+"</div></div>";
-      }).join("");
-      grid.querySelectorAll(".ev-card").forEach(card => {
-        card.addEventListener("click", () => {
-          grid.querySelectorAll(".ev-card").forEach(c => c.classList.remove("selected"));
-          card.classList.add("selected");
-          document.getElementById("agentIcon").textContent = card.dataset.agent;
-          document.getElementById("agentName").textContent = card.dataset.name;
-          document.getElementById("agentMission").textContent = card.dataset.mission || "+";
-          document.getElementById("agentObs").textContent = card.dataset.obs || "+";
-          document.getElementById("agentEvi").textContent = card.dataset.evi || "+";
-          document.getElementById("agentContra").textContent = card.dataset.contra || "+";
-          document.getElementById("agentLim").textContent = card.dataset.lim || "+";
-          document.getElementById("agentConc").textContent = card.dataset.conc || "+";
-          document.getElementById("briefAgentPanel").style.display = "block";
-          activateAiTab("brief");
+      countEl.textContent = agents.length + ' Agents';
+      var html = '';
+      for (var i = 0; i < agents.length; i++) {
+        var a = agents[i];
+        var cv = Math.round((a.confidence||0)*100);
+        var st = cv>=70?'validated':cv>=45?'uncertain':'conflict';
+        var nm = a.agent_id || a.agent || 'Agent';
+        var sm = a.summary || a.reasoning || '—';
+        var sig = a.signal || a.bias || 'neutral';
+        var suf = a.data_sufficient !== false;
+        html += '<div class="ev-card" data-agent="'+nm.substring(0,2).toUpperCase()+'" data-name="'+nm+'" data-mission="Signal: '+sig+'" data-obs="'+sm.replace(/"/g,'&quot;')+'" data-conc="'+sm.replace(/"/g,'&quot;')+'">';
+        html += '<div class="ev-top"><span class="ev-name">'+nm+'</span><span class="ev-status '+st+'"></span></div>';
+        html += '<div class="ev-conf">'+(suf?'Confidence '+cv+'%':'Insufficient Data')+' · '+sig+'</div>';
+        html += '<div class="ev-bar"><span style="width:'+cv+'%"></span></div>';
+        html += '<div class="ev-finding">'+sm.substring(0,80)+'</div></div>';
+      }
+      grid.innerHTML = html;
+      grid.querySelectorAll('.ev-card').forEach(function(card) {
+        card.addEventListener('click', function() {
+          grid.querySelectorAll('.ev-card').forEach(function(c){ c.classList.remove('selected'); });
+          card.classList.add('selected');
+          document.getElementById('agentIcon').textContent = card.dataset.agent;
+          document.getElementById('agentName').textContent = card.dataset.name;
+          document.getElementById('agentMission').textContent = card.dataset.mission || '—';
+          document.getElementById('agentObs').textContent = card.dataset.obs || '—';
+          document.getElementById('agentEvi').textContent = card.dataset.evi || '—';
+          document.getElementById('agentContra').textContent = card.dataset.contra || '—';
+          document.getElementById('agentLim').textContent = card.dataset.lim || '—';
+          document.getElementById('agentConc').textContent = card.dataset.conc || '—';
+          document.getElementById('briefAgentPanel').style.display = 'block';
+          activateAiTab('brief');
         });
       });
     }
