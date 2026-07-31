@@ -35,7 +35,6 @@ from agents.specialists.executive_synthesis_v2 import (
     build_synthesis_prompt, parse_executive_response, 
     create_fallback_synthesis, EXECUTIVE_SYSTEM_PROMPT,
 )
-from decision_engine.engine import ExecutiveDecisionEngine
 
 logger = logging.getLogger(__name__)
 

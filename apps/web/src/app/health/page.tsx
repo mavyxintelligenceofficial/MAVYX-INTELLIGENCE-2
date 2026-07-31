@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/features/auth/store';
 import { apiRequest } from '@/services/api-client';
-import AppLayout from '@/components/AppLayout';
+import '@/app/mavyx-ui.css';
 
 interface ServiceHealth {
   status: string;
@@ -20,7 +20,7 @@ interface SystemHealth {
 
 export default function HealthPage() {
   const router = useRouter();
-  const { token, isHydrated, hydrate } = useAuthStore();
+  const { token, isHydrated, hydrate, logout } = useAuthStore();
   const [health, setHealth] = useState<SystemHealth | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -46,11 +46,17 @@ export default function HealthPage() {
   if (!isHydrated || !token) return null;
 
   return (
-    <AppLayout>
+    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', padding: '32px 24px' }}>
       <div style={{ maxWidth: 600, margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h1 style={{ fontSize: 20, fontWeight: 700 }}>System Health</h1>
-          <button onClick={checkHealth} className="analyze-btn" style={{ padding: '6px 14px', fontSize: 11 }}>Refresh</button>
+          <div>
+            <a onClick={() => router.push('/workspace')} style={{ cursor: 'pointer', fontSize: 11, color: 'var(--text-mute)' }}>← Back to Workspace</a>
+            <h1 style={{ fontSize: 20, fontWeight: 700, marginTop: 4 }}>System Health</h1>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={checkHealth} className="analyze-btn" style={{ padding: '6px 14px', fontSize: 11 }}>Refresh</button>
+            <button onClick={() => { logout(); router.push('/login'); }} className="analyze-btn" style={{ padding: '6px 14px', fontSize: 11 }}>Logout</button>
+          </div>
         </div>
 
         {isLoading ? (
@@ -92,6 +98,6 @@ export default function HealthPage() {
           </div>
         )}
       </div>
-    </AppLayout>
+    </div>
   );
 }

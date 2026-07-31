@@ -1207,16 +1207,26 @@
   
   function updateBriefFromResult(result) {
     if (!result) return;
-    const conf = result.confidence || 0;
+    try {
+      updateBriefFromResultInner(result);
+    } catch (e) {
+      console.error('[Mavyx] updateBriefFromResult failed partway through:', e);
+      showToast('UI update error — check console (' + (e && e.message || e) + ')');
+    }
+  }
+
+  function updateBriefFromResultInner(result) {
+    // result.confidence is a 0-1 decimal from the backend (see schema.py EXECUTIVE_SCHEMA).
+    const confPct = Math.round((result.confidence || 0) * 100);
     const circumference = 2 * Math.PI * 36;
-    const offset = circumference - (conf / 100) * circumference;
+    const offset = circumference - (confPct / 100) * circumference;
     const ringFill = document.querySelector('.ring-fill');
     if (ringFill) {
       ringFill.setAttribute('stroke-dasharray', circumference.toString());
       ringFill.setAttribute('stroke-dashoffset', offset.toString());
     }
     const ringNum = document.getElementById('briefConfNum');
-    if (ringNum) ringNum.textContent = Math.round(conf * 100) + '%';
+    if (ringNum) ringNum.textContent = confPct + '%';
     document.getElementById('briefRunPrompt').style.display = 'none';
     document.getElementById('briefConfidenceBlock').style.opacity = '1';
 
@@ -1248,19 +1258,25 @@
 
     const bullList = document.getElementById('briefBullList');
     const bearList = document.getElementById('briefBearList');
-    if (bullList && result.bull_case) {
-      const cases = Array.isArray(result.bull_case) ? result.bull_case : [result.bull_case];
-      bullList.innerHTML = cases.map(function(c){ return '<li>'+c+'</li>'; }).join('') || '<li>—</li>';
+    if (bullList) {
+      const raw = result.bull_case;
+      const cases = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      bullList.innerHTML = cases.length
+        ? cases.map(function(c){ return '<li>'+c+'</li>'; }).join('')
+        : '<li>AI returned no bull case for this analysis</li>';
     }
-    if (bearList && result.bear_case) {
-      const cases = Array.isArray(result.bear_case) ? result.bear_case : [result.bear_case];
-      bearList.innerHTML = cases.map(function(c){ return '<li>'+c+'</li>'; }).join('') || '<li>—</li>';
+    if (bearList) {
+      const raw = result.bear_case;
+      const cases = Array.isArray(raw) ? raw : (raw ? [raw] : []);
+      bearList.innerHTML = cases.length
+        ? cases.map(function(c){ return '<li>'+c+'</li>'; }).join('')
+        : '<li>AI returned no bear case for this analysis</li>';
     }
 
-    document.getElementById('briefRisk').textContent = result.risk_assessment || '—';
-    document.getElementById('briefInvalidation').textContent = result.invalidation_price || '—';
-    document.getElementById('briefRecommended').textContent = result.recommended_scenario || '—';
-    document.getElementById('briefAlternative').textContent = result.alternative_scenario || '—';
+    document.getElementById('briefRisk').textContent = result.risk_assessment || 'Not provided by AI synthesis';
+    document.getElementById('briefInvalidation').textContent = (result.invalidation_price !== undefined && result.invalidation_price !== null) ? result.invalidation_price : 'Not provided';
+    document.getElementById('briefRecommended').textContent = result.recommended_scenario || 'Not provided';
+    document.getElementById('briefAlternative').textContent = result.alternative_scenario || 'Not provided';
 
     // Trade Plan
     if (result.suggested_action) {
@@ -1268,7 +1284,7 @@
       if (sa.entry_zone) { document.getElementById('tpEntry').textContent = sa.entry_zone; document.getElementById('tpEntrySub').textContent = sa.entry_reason || ''; }
       if (sa.stop_loss) { document.getElementById('tpStop').textContent = sa.stop_loss; document.getElementById('tpStopSub').textContent = sa.stop_reason || ''; }
       if (sa.take_profit_1) { document.getElementById('tpTarget').textContent = sa.take_profit_1; document.getElementById('tpTargetSub').textContent = sa.target_reason || ''; }
-      document.getElementById('tpRR').textContent = sa.risk_reward || (Math.round(conf*100)+'%');
+      document.getElementById('tpRR').textContent = sa.risk_reward || (confPct+'%');
     }
 
     // Evidence Grid
