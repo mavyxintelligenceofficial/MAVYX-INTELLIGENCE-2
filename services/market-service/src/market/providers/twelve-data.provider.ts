@@ -69,12 +69,29 @@ export class TwelveDataProvider implements MarketDataProvider {
       );
     }
 
-    const response = await firstValueFrom(
-      this.httpService.get<T>(`${BASE_URL}${path}`, {
-        params: { ...params, apikey: this.apiKey },
-      }),
-    );
-
-    return response.data;
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get<T>(`${BASE_URL}${path}`, {
+          params: { ...params, apikey: this.apiKey },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      // Twelve Data returns some errors as a 200 with {code, message} in the
+      // body (handled by the caller's own `if (response.code)` check), but
+      // for an unsupported/unrecognized symbol (e.g. an index or a bond
+      // yield not available on this plan) it can return a non-2xx HTTP
+      // status directly, which makes axios throw. That was previously
+      // uncaught here, so it surfaced as an opaque 500 with no message
+      // instead of a clear, honest error.
+      const axiosErr = err as { response?: { status?: number; data?: any } };
+      const upstreamMessage =
+        axiosErr?.response?.data?.message || axiosErr?.response?.data?.error || null;
+      throw new ServiceUnavailableException(
+        upstreamMessage ||
+          `Twelve Data request failed for ${params.symbol || 'unknown symbol'}` +
+            (axiosErr?.response?.status ? ` (upstream status ${axiosErr.response.status})` : ''),
+      );
+    }
   }
 }
