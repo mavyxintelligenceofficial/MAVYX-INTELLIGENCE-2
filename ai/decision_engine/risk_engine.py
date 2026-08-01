@@ -40,6 +40,7 @@ def run_risk_gate(
     consensus: dict[str, Any],
     quorum_met: bool,
     devils_advocate_output: Optional[dict[str, Any]] = None,
+    market_closed: bool = False,
 ) -> dict[str, Any]:
     """Run the mandatory risk gate. Returns a dict the orchestrator must
     treat as authoritative, not advisory:
@@ -59,6 +60,13 @@ def run_risk_gate(
     risk_flags: list[str] = []
     forced_recommendation: Optional[str] = None
     confidence = consensus.get("consensus_confidence", 0.0)
+
+    if market_closed:
+        risk_flags.append(
+            "Markets are currently closed (weekend) — this analysis is based on "
+            "stale candle data from the last close, not live price action."
+        )
+        forced_recommendation = "wait"
 
     if not quorum_met:
         forced_recommendation = "no_trade"

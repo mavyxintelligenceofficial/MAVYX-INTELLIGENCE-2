@@ -460,6 +460,7 @@ function startNextEventCountdown(eventTimestamp, onUpdate) {
 
 // Get current trading session based on UTC time
 function getCurrentSession() {
+  if (!isMarketOpen()) return { name: 'Markets Closed (Weekend)', color: 'var(--red)' };
   const hour = new Date().getUTCHours();
   if (hour >= 0 && hour < 7) return { name: 'Asian Session', color: 'var(--blue)' };
   if (hour >= 7 && hour < 16) return { name: 'London Session', color: 'var(--green)' };

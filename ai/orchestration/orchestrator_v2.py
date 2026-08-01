@@ -128,6 +128,9 @@ class AIOrchestratorV2:
         
         if not candle_data:
             logger.warning(f"No candle data for {symbol} — all agents will report insufficient data")
+
+        session = self._get_session()
+        market_closed = session.startswith("Weekend")
         
         # ─── Phase 1: Run 10 Specialist Agents (sequential, rate-limited) ───
         specialist_outputs = []
@@ -152,7 +155,7 @@ class AIOrchestratorV2:
                 symbol=symbol,
                 timeframe=timeframe,
                 candle_data=candle_data,
-                context={"session": self._get_session()},
+                context={"session": session},
                 request_id=f"spec_{agent_name}",
                 min_candles=agent.min_candles,
                 detail=agent.domain_description,
@@ -226,7 +229,7 @@ class AIOrchestratorV2:
         devils_advocate_output = next(
             (o for o in specialist_outputs if o.get("agent") == "devils_advocate"), None
         )
-        gate = run_risk_gate(consensus, quorum_met, devils_advocate_output)
+        gate = run_risk_gate(consensus, quorum_met, devils_advocate_output, market_closed=market_closed)
         self._emit_status(AgentStatus(
             agent="risk_management_gate",
             status="completed" if not gate["risk_flags"] else "failed",
@@ -327,6 +330,8 @@ class AIOrchestratorV2:
         final = {
             "symbol": symbol,
             "timeframe": timeframe,
+            "session": session,
+            "market_closed": market_closed,
             "recommendation": result.executive.get("recommendation", "no_trade"),
             "confidence": result.executive.get("confidence", 0),
             "executive_summary": result.executive.get("executive_summary", ""),
@@ -373,9 +378,27 @@ class AIOrchestratorV2:
         return final
     
     def _get_session(self) -> str:
-        """Get current trading session based on UTC hour."""
+        """Get current trading session based on UTC day + hour.
+
+        Forex markets are closed roughly Friday 22:00 UTC through Sunday
+        22:00 UTC (broker feeds vary by an hour or two, but this covers the
+        universal closed window). Previously this only checked the hour,
+        so it would confidently report a live session (e.g. "London") even
+        on a Saturday with markets fully closed and candle data stale since
+        Friday's close - misleading for anyone reading the analysis.
+        """
         from datetime import datetime, timezone
-        hour = datetime.now(timezone.utc).hour
+        now = datetime.now(timezone.utc)
+        weekday = now.weekday()  # Monday=0 ... Sunday=6
+        hour = now.hour
+
+        if weekday == 5:  # Saturday - always closed
+            return "Weekend — Markets Closed"
+        if weekday == 6 and hour < 22:  # Sunday before ~22:00 UTC reopen
+            return "Weekend — Markets Closed"
+        if weekday == 4 and hour >= 22:  # Friday after ~22:00 UTC close
+            return "Weekend — Markets Closed"
+
         if 0 <= hour < 7:
             return "Asian"
         elif 7 <= hour < 13:
