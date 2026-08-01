@@ -14,10 +14,14 @@ const BASE_URL = 'https://api.twelvedata.com';
  */
 @Injectable()
 export class TwelveDataProvider implements MarketDataProvider {
-  private readonly apiKey: string;
+  constructor(private readonly httpService: HttpService) {}
 
-  constructor(private readonly httpService: HttpService) {
-    this.apiKey = process.env.MARKET_DATA_API_KEY || '';
+  private get apiKey(): string {
+    // Read fresh every time, not cached at construction - the
+    // POST /market/api-key endpoint updates process.env at runtime
+    // specifically so a key can be swapped without restarting the
+    // service, which only works if we actually re-read it here.
+    return process.env.MARKET_DATA_API_KEY || '';
   }
 
   async getQuote(symbol: string): Promise<Quote> {

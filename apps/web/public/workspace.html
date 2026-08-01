@@ -2747,29 +2747,40 @@
           showToast('Profile updated');
         });
       } else if(tab === 'integrations'){
+        let tdStatus = { configured: false, keyPreview: null };
+        let zaiStatus = { configured: false, key_preview: null };
+        try {
+          const [tdRes, zaiRes] = await Promise.all([
+            apiRequest('/market/api-key/status', { method: 'GET' }).catch(()=>null),
+            apiRequest('/ai/settings/zai-key/status', { method: 'GET' }).catch(()=>null),
+          ]);
+          if (tdRes) tdStatus = tdRes;
+          if (zaiRes) zaiStatus = zaiRes;
+        } catch {}
+
         pane.innerHTML = `
           <div class="settings-field">
             <label>Twelve Data API Key</label>
             <div class="api-key-row">
-              <input type="password" id="apiKeyTwelveData" placeholder="Paste your Twelve Data API key" value="${apiKeys.twelveData}">
+              <input type="password" id="apiKeyTwelveData" placeholder="Paste your Twelve Data API key">
               <button class="api-key-toggle" data-target="apiKeyTwelveData" title="Show/hide">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
-            <div class="api-key-sub">Powers live quotes, candles, and the TradingView chart feed.</div>
+            <div class="api-key-sub" id="tdKeyStatus">${tdStatus.configured ? ('Currently configured, ending in ' + (tdStatus.keyPreview||'')) : 'Not configured yet'} — powers live quotes, candles, and the TradingView chart feed.</div>
           </div>
           <div class="settings-field">
             <label>Z.AI API Key</label>
             <div class="api-key-row">
-              <input type="password" id="apiKeyZai" placeholder="Paste your Z.AI API key" value="${apiKeys.zai}">
+              <input type="password" id="apiKeyZai" placeholder="Paste your Z.AI API key">
               <button class="api-key-toggle" data-target="apiKeyZai" title="Show/hide">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
               </button>
             </div>
-            <div class="api-key-sub">Powers the AI agents — Executive Brief, Evidence, and AI Chat.</div>
+            <div class="api-key-sub" id="zaiKeyStatus">${zaiStatus.configured ? ('Currently configured, ending in ' + (zaiStatus.key_preview||'')) : 'Not configured yet'} — powers the AI agents: Executive Brief, Evidence, and AI Chat.</div>
           </div>
           <button class="settings-save" id="settingsSaveApiKeys">Save API Keys</button>
-          <div class="api-key-note">Keys are kept in this browser session only, for wiring up the live integrations shown in this spec — they are not sent anywhere by this file.</div>
+          <div class="api-key-note">Keys are sent directly to your own local services (market-service and the AI model-service) and take effect immediately — nothing is stored in this browser or sent anywhere else. Leave a field blank to leave that key unchanged.</div>
         `;
         pane.querySelectorAll('.api-key-toggle').forEach(btn=>{
           btn.addEventListener('click', ()=>{
@@ -2777,10 +2788,37 @@
             input.type = (input.type === 'password') ? 'text' : 'password';
           });
         });
-        pane.querySelector('#settingsSaveApiKeys').addEventListener('click', ()=>{
-          apiKeys.twelveData = pane.querySelector('#apiKeyTwelveData').value.trim();
-          apiKeys.zai = pane.querySelector('#apiKeyZai').value.trim();
-          showToast('API keys saved');
+        pane.querySelector('#settingsSaveApiKeys').addEventListener('click', async ()=>{
+          const td = pane.querySelector('#apiKeyTwelveData').value.trim();
+          const zai = pane.querySelector('#apiKeyZai').value.trim();
+          if (!td && !zai) { showToast('Enter at least one key to save'); return; }
+          const saveBtn = pane.querySelector('#settingsSaveApiKeys');
+          saveBtn.disabled = true;
+          saveBtn.textContent = 'Saving…';
+          const results = [];
+          try {
+            if (td) {
+              try {
+                await apiRequest('/market/api-key', { method: 'POST', body: JSON.stringify({ apiKey: td }) });
+                results.push('Twelve Data key updated');
+              } catch (e) {
+                results.push('Twelve Data key FAILED: ' + (e && e.message || e));
+              }
+            }
+            if (zai) {
+              try {
+                await apiRequest('/ai/settings/zai-key', { method: 'POST', body: JSON.stringify({ api_key: zai }) });
+                results.push('Z.AI key updated');
+              } catch (e) {
+                results.push('Z.AI key FAILED: ' + (e && e.message || e));
+              }
+            }
+          } finally {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save API Keys';
+          }
+          showToast(results.join(' · '));
+          renderSettingsPane(pane, 'integrations');
         });
       } else {
         pane.innerHTML = `
@@ -3311,11 +3349,24 @@
         btn.addEventListener('click', (e) => {
           e.stopPropagation();
           const panel = header.closest('.panel');
-          const panelId = panel?.dataset?.panelId;
-          showToast('Refreshing…');
+          const panelId = panel?.dataset?.panelId || panel?.dataset?.floatingId;
           if (panelId === 'aiPanel') {
+            showToast('Refreshing…');
             // Refresh AI panel - reload chat from Supabase
             reloadChatFromSupabase();
+          } else if (panelId === 'brief' || panelId === 'evidence') {
+            // These panels only ever show the last analysis run - "refresh"
+            // here means what it says on every other trading platform:
+            // run a fresh analysis, not just re-paint stale data.
+            const analyzeBtn = document.getElementById('analyzeBtn');
+            if (analyzeBtn) {
+              showToast('Running a fresh analysis…');
+              analyzeBtn.click();
+            } else {
+              showToast('Refreshing…');
+            }
+          } else {
+            showToast('Refreshing…');
           }
           // General refresh - update dock data
           updateDock();

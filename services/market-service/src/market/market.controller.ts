@@ -30,7 +30,10 @@ export class MarketController {
 
   /**
    * Update API key at runtime — accepts key from frontend settings.
+   * Auth-guarded: this overwrites the live provider credential, so it
+   * must not be reachable by an unauthenticated caller.
    */
+  @UseGuards(JwtAuthGuard)
   @Post('api-key')
   async updateApiKey(@Body() body: { apiKey: string }) {
     if (!body.apiKey) {
@@ -39,6 +42,17 @@ export class MarketController {
     // Update the environment variable at runtime
     process.env.MARKET_DATA_API_KEY = body.apiKey;
     return { success: true, message: 'API key updated' };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('api-key/status')
+  async apiKeyStatus() {
+    const key = process.env.MARKET_DATA_API_KEY || '';
+    const configured = key.length > 0;
+    return {
+      configured,
+      keyPreview: configured && key.length >= 4 ? '…' + key.slice(-4) : null,
+    };
   }
 
   @UseGuards(JwtAuthGuard)

@@ -73,6 +73,39 @@ class AnalyzeRequest(BaseModel):
     model: Optional[str] = None
 
 
+class ApiKeyUpdateRequest(BaseModel):
+    api_key: str
+
+
+@app.get("/settings/zai-key/status")
+async def zai_key_status(_user: dict = Depends(require_auth)):
+    """Report whether a Z.AI key is currently configured, without ever
+    exposing the key value itself."""
+    key = os.environ.get("ZAI_API_KEY", "")
+    configured = bool(key) and key != "paste_your_zai_api_key_here"
+    return {
+        "configured": configured,
+        "key_preview": ("…" + key[-4:]) if configured and len(key) >= 4 else None,
+    }
+
+
+@app.post("/settings/zai-key")
+async def update_zai_key(body: ApiKeyUpdateRequest, _user: dict = Depends(require_auth)):
+    """Update the Z.AI API key at runtime (Settings > Integrations).
+
+    Per Rebuild Spec: previously there was no way to do this at all - the
+    key could only be set via .env before the service started, and even
+    if it had been settable, ZaiProvider cached its client at __init__
+    time so a later change would never have taken effect anyway (fixed
+    separately in zai_provider.py - it now builds its client fresh on
+    every call, reading os.environ each time).
+    """
+    if not body.api_key or not body.api_key.strip():
+        raise HTTPException(status_code=400, detail="api_key is required")
+    os.environ["ZAI_API_KEY"] = body.api_key.strip()
+    return {"success": True, "message": "Z.AI API key updated"}
+
+
 @app.get("/health")
 def health():
     return {

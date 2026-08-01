@@ -30,19 +30,33 @@ class ZaiProvider(ModelProvider):
     Uses the OpenAI-compatible endpoint so the SDK handles all protocol
     details.  Swap DEFAULT_MODEL or pass model= to GenerateRequest to
     use a different GLM variant.
+
+    Previously this raised RuntimeError in __init__ if ZAI_API_KEY was
+    missing, which crashed the entire service at import time (main.py
+    builds a module-level `_provider = ZaiProvider()`) - meaning the app
+    couldn't even start without a key already configured, let alone let
+    a user add one via the Settings UI afterward. It also built the
+    AsyncOpenAI client once with whatever key was present at that
+    moment, so a key updated later via /settings/zai-key had no effect
+    on already-issued requests. Both fixed: the key and client are now
+    read/rebuilt fresh on every generate() call.
     """
 
     def __init__(self) -> None:
+        pass
+
+    def _get_client(self) -> AsyncOpenAI:
         api_key = os.environ.get("ZAI_API_KEY")
         if not api_key or api_key == "paste_your_zai_api_key_here":
             raise RuntimeError(
-                "ZAI_API_KEY is not set — get a free key at "
-                "https://z.ai/manage-apikey/apikey-list and add it to .env"
+                "ZAI_API_KEY is not set — add one via Settings > Integrations, "
+                "or get a free key at https://z.ai/manage-apikey/apikey-list "
+                "and add it to .env"
             )
         base_url = os.environ.get(
             "ZAI_BASE_URL", "https://api.z.ai/api/paas/v4"
         )
-        self._client = AsyncOpenAI(api_key=api_key, base_url=base_url)
+        return AsyncOpenAI(api_key=api_key, base_url=base_url)
 
     async def generate(
         self,
@@ -50,7 +64,8 @@ class ZaiProvider(ModelProvider):
         user_prompt: str,
         model: Optional[str] = None,
     ) -> str:
-        response = await self._client.chat.completions.create(
+        client = self._get_client()
+        response = await client.chat.completions.create(
             model=model or DEFAULT_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},

@@ -116,6 +116,34 @@ export class AiProxyController {
     }
   }
 
+  @Post('settings/zai-key')
+  async updateZaiKey(@Body() body: any, @Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.aiServiceUrl}/settings/zai-key`, body, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
+  @Get('settings/zai-key/status')
+  async zaiKeyStatus(@Req() request: Request) {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.aiServiceUrl}/settings/zai-key/status`, {
+          headers: { Authorization: request.headers.authorization || '' },
+        }),
+      );
+      return response.data;
+    } catch (err) {
+      return this.handleError(err);
+    }
+  }
+
   @Get('health')
   async health() {
     try {
