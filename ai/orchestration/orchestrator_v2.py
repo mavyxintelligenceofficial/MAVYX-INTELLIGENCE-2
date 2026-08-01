@@ -31,10 +31,13 @@ from agents.specialists.session_boundaries_v2 import SessionBoundariesAgent
 from agents.specialists.institutional_targets_v2 import InstitutionalTargetsAgent
 from agents.specialists.invalidation_levels_v2 import InvalidationLevelsAgent
 from agents.specialists.news_fundamental_v2 import NewsFundamentalAgent
+from agents.specialists.devils_advocate import DevilsAdvocateAgent
 from agents.specialists.executive_synthesis_v2 import (
     build_synthesis_prompt, parse_executive_response, 
     create_fallback_synthesis, EXECUTIVE_SYSTEM_PROMPT,
 )
+from decision_engine.consensus_engine import compute_consensus
+from decision_engine.risk_engine import run_risk_gate
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +56,9 @@ SPECIALIST_ORDER = [
     ("institutional_targets", InstitutionalTargetsAgent),
     # Dependent agents (need prior outputs)
     ("invalidation_levels", InvalidationLevelsAgent),
+    # Devil's Advocate runs last among specialists so it can challenge
+    # every other agent's output, including invalidation_levels'.
+    ("devils_advocate", DevilsAdvocateAgent),
 ]
 
 NEWS_AGENT = ("news_fundamental", NewsFundamentalAgent)
@@ -148,6 +154,8 @@ class AIOrchestratorV2:
                 candle_data=candle_data,
                 context={"session": self._get_session()},
                 request_id=f"spec_{agent_name}",
+                min_candles=agent.min_candles,
+                detail=agent.domain_description,
             )
             
             specialist_outputs.append(output)
@@ -177,64 +185,76 @@ class AIOrchestratorV2:
             candle_data=candle_data,
             context={"economic_calendar": economic_calendar or []},
             request_id="news",
+            min_candles=news_agent.min_candles,
+            detail=news_agent.domain_description,
         )
         specialist_outputs.append(news_output)
         result.specialists.append(news_output)
         
-        # ─── Phase 3: Quorum Gate Check ───
+        # ─── Phase 3: Consensus Engine (code-computed, Rule 2) ───
+        self._emit_status(AgentStatus(
+            agent="consensus_engine",
+            status="running",
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            detail="Tallying weighted votes across all reporting specialists (code, no AI call)…",
+        ))
+        consensus = compute_consensus(specialist_outputs)
         quorum_met, agents_reporting, agents_sufficient = self.queue.check_quorum(specialist_outputs)
         result.quorum_met = quorum_met
         result.agents_reporting = agents_reporting
         result.agents_data_sufficient = agents_sufficient
-        
-        # Emit quorum status
         self._emit_status(AgentStatus(
-            agent="quorum_gate",
-            status="completed" if quorum_met else "failed",
+            agent="consensus_engine",
+            status="completed",
             timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
             output_preview={
-                "quorum_met": quorum_met,
-                "agents_reporting": agents_reporting,
-                "agents_data_sufficient": agents_sufficient,
+                "majority_bias": consensus["majority_bias"],
+                "agreement_ratio": consensus["agreement_ratio"],
+                "consensus_confidence": consensus["consensus_confidence"],
+                "disagreement": consensus["disagreement"],
+                "counts": consensus["counts"],
             },
         ))
-        
-        # ─── Phase 4: Executive Synthesis (only if quorum met) ───
+
+        # ─── Phase 4: Risk Management Engine (mandatory gate, Rule 10) ───
+        self._emit_status(AgentStatus(
+            agent="risk_management_gate",
+            status="running",
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            detail="Applying quorum, disagreement, and Devil's Advocate penalties to consensus confidence (code, no AI call)…",
+        ))
+        devils_advocate_output = next(
+            (o for o in specialist_outputs if o.get("agent") == "devils_advocate"), None
+        )
+        gate = run_risk_gate(consensus, quorum_met, devils_advocate_output)
+        self._emit_status(AgentStatus(
+            agent="risk_management_gate",
+            status="completed" if not gate["risk_flags"] else "failed",
+            timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            output_preview={
+                "final_confidence": gate["final_confidence"],
+                "forced_recommendation": gate["forced_recommendation"],
+                "risk_flags": gate["risk_flags"],
+            },
+            error="; ".join(gate["risk_flags"]) if gate["risk_flags"] else None,
+        ))
+        risk_context = {"consensus": consensus, "gate": gate}
+
+        # ─── Phase 5: Executive Synthesis (narrative only — LLM does not compute confidence) ───
         if not quorum_met:
             logger.warning(f"Quorum NOT met ({agents_sufficient}/{agents_reporting}) — withholding recommendation")
-            result.executive = {
-                "recommendation": "no_trade",
-                "confidence": 0,
-                "agents_reporting": agents_reporting,
-                "agents_data_sufficient": agents_sufficient,
-                "bull_case": [],
-                "bear_case": [f"Quorum not met: only {agents_sufficient}/{agents_reporting} agents returned sufficient data"],
-                "risk_assessment": f"Recommendation withheld — insufficient data from {agents_reporting - agents_sufficient} agents",
-                "invalidation_price": None,
-                "recommended_scenario": "Wait for all agents to report successfully",
-                "alternative_scenario": "Re-run analysis when market conditions improve",
-                "executive_summary": f"Analysis incomplete: only {agents_sufficient} of {agents_reporting} specialist agents returned sufficient data. A minimum of 7 is required. Recommendation is withheld to avoid providing analysis based on incomplete information.",
-            }
+            result.executive = create_fallback_synthesis(
+                consensus["counts"], gate["final_confidence"], agents_reporting, agents_sufficient, risk_context,
+            )
         else:
-            # Calculate consensus from specialist outputs
-            consensus = {"bullish": 0, "bearish": 0, "neutral": 0}
-            valid_confidences = []
-            for output in specialist_outputs:
-                bias = output.get("bias", "neutral")
-                if bias in consensus:
-                    consensus[bias] += 1
-                if output.get("data_sufficient") and output.get("confidence", 0) > 0:
-                    valid_confidences.append(output["confidence"])
-            
-            avg_confidence = sum(valid_confidences) / len(valid_confidences) if valid_confidences else 0
-            
-            # Build synthesis prompt
+            # Build synthesis prompt with the pre-computed consensus/risk data
             synthesis_prompt = build_synthesis_prompt(
                 symbol, timeframe, specialist_outputs,
                 quorum_met, agents_reporting, agents_sufficient,
+                risk_context=risk_context,
             )
             
-            # Call AI for executive synthesis
+            # Call AI for executive synthesis (narrative only)
             self._emit_status(AgentStatus(
                 agent="executive_synthesis",
                 status="running",
@@ -255,13 +275,39 @@ class AIOrchestratorV2:
                 is_valid, errors = validate_executive_output(parsed)
                 if not is_valid:
                     logger.error(f"Executive synthesis schema invalid: {errors}")
-                    parsed = create_fallback_synthesis(consensus, avg_confidence, agents_reporting, agents_sufficient)
-                
+                    parsed = create_fallback_synthesis(
+                        consensus["counts"], gate["final_confidence"], agents_reporting, agents_sufficient, risk_context,
+                    )
+
+                # The Risk Gate is authoritative, not advisory — override
+                # whatever the LLM asserted for confidence/recommendation.
+                parsed["confidence"] = gate["final_confidence"]
+                if gate["forced_recommendation"]:
+                    parsed["recommendation"] = gate["forced_recommendation"]
+
+                # The Devil's Advocate challenge must appear in bear_case
+                # regardless of whether the LLM included it (Rule 7 — the
+                # AI must always identify reasons not to take the trade,
+                # and this cannot be silently dropped by the narrative step).
+                bear_case = parsed.get("bear_case") or []
+                if not isinstance(bear_case, list):
+                    bear_case = [str(bear_case)]
+                if gate["devils_advocate_challenge"] and not any(
+                    gate["devils_advocate_challenge"] in b for b in bear_case
+                ):
+                    bear_case.append(f"{gate['devils_advocate_challenge']} (agent: devils_advocate)")
+                for flag in gate["risk_flags"]:
+                    if not any(flag in b for b in bear_case):
+                        bear_case.append(flag)
+                parsed["bear_case"] = bear_case
+
                 result.executive = parsed
                 
             except Exception as e:
                 logger.error(f"Executive synthesis failed: {e}")
-                result.executive = create_fallback_synthesis(consensus, avg_confidence, agents_reporting, agents_sufficient)
+                result.executive = create_fallback_synthesis(
+                    consensus["counts"], gate["final_confidence"], agents_reporting, agents_sufficient, risk_context,
+                )
             
             self._emit_status(AgentStatus(
                 agent="executive_synthesis",
@@ -291,10 +337,13 @@ class AIOrchestratorV2:
             "recommended_scenario": result.executive.get("recommended_scenario", ""),
             "alternative_scenario": result.executive.get("alternative_scenario", ""),
             "suggested_action": result.executive.get("suggested_action", {}),
-            "agent_consensus": {
-                "bullish": sum(1 for o in specialist_outputs if o.get("bias") == "bullish"),
-                "bearish": sum(1 for o in specialist_outputs if o.get("bias") == "bearish"),
-                "neutral": sum(1 for o in specialist_outputs if o.get("bias") == "neutral"),
+            "agent_consensus": consensus["counts"],
+            "consensus_detail": consensus,
+            "risk_gate": {
+                "risk_flags": gate["risk_flags"],
+                "devils_advocate_challenge": gate["devils_advocate_challenge"],
+                "devils_advocate_confidence": gate["devils_advocate_confidence"],
+                "forced_recommendation": gate["forced_recommendation"],
             },
             "full_agent_outputs": specialist_outputs,
             "agent_breakdown": [

@@ -23,6 +23,7 @@ from agents.schema import (
     validate_specialist_output,
     validate_executive_output,
     create_fallback_output,
+    create_insufficient_data_output,
 )
 
 logger = logging.getLogger(__name__)
@@ -34,7 +35,7 @@ MAX_RETRIES = 1
 RETRY_DELAYS = [2, 5]  # exponential backoff delays
 
 # Quorum: minimum agents that must report successfully before synthesis
-MIN_QUORUM = 7  # out of 10 specialists
+MIN_QUORUM = 7  # out of 12 total agents (11 specialists incl. devils_advocate + news_fundamental)
 
 
 @dataclass
@@ -47,6 +48,7 @@ class AgentStatus:
     output_preview: Optional[dict] = None
     error: Optional[str] = None
     attempt: int = 0
+    detail: Optional[str] = None
 
 
 @dataclass
@@ -150,12 +152,34 @@ class AgentQueue:
         candle_data: list,
         context: Optional[dict] = None,
         request_id: Optional[str] = None,
+        min_candles: int = 20,
+        detail: Optional[str] = None,
     ) -> dict:
         """Run a single agent with retries, timeout, caching, and schema validation.
         
         Returns the validated output dict, or a fallback on failure.
+
+        If candle_data has fewer than min_candles entries, this skips the
+        API call entirely (saves a rate-limited request) and returns a
+        deterministic insufficient-data output — this was previously only
+        checked inside SpecialistAgent.analyze(), which was dead code never
+        called by the real pipeline, so the check never actually ran.
         """
         request_id = request_id or str(uuid.uuid4())[:8]
+
+        if not candle_data or len(candle_data) < min_candles:
+            reason = f"need {min_candles} candles, got {len(candle_data) if candle_data else 0}"
+            logger.info(f"[{request_id}] {agent_name} SKIPPED (insufficient candles: {reason})")
+            output = create_insufficient_data_output(agent_name, reason)
+            self._emit_status(AgentStatus(
+                agent=agent_name,
+                status="completed",
+                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                duration_ms=0,
+                output_preview={"bias": "neutral", "confidence": 0.0, "key_levels": []},
+                error=reason,
+            ))
+            return output
         
         # Check cache first
         cached = self.cache.get(agent_name, symbol, timeframe, candle_data)
@@ -169,6 +193,8 @@ class AgentQueue:
                     "bias": cached.get("bias"),
                     "confidence": cached.get("confidence"),
                     "key_levels": cached.get("key_levels", [])[:1],
+                    "reasoning": (cached.get("reasoning") or "")[:160],
+                    "cached": True,
                 },
             )
             self._emit_status(status)
@@ -185,6 +211,7 @@ class AgentQueue:
                 status="running" if attempt == 0 else "retrying",
                 timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 attempt=attempt,
+                detail=detail,
             ))
             
             try:
@@ -234,6 +261,7 @@ class AgentQueue:
                         "bias": raw_output.get("bias"),
                         "confidence": raw_output.get("confidence"),
                         "key_levels": raw_output.get("key_levels", [])[:1],
+                        "reasoning": (raw_output.get("reasoning") or "")[:160],
                     },
                 ))
                 

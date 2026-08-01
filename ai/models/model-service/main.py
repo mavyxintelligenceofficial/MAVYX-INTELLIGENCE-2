@@ -227,6 +227,7 @@ async def analyze_stream(body: AnalyzeRequest, user: dict = Depends(require_auth
                 "duration_ms": status.duration_ms,
                 "output_preview": status.output_preview,
                 "error": status.error,
+                "detail": status.detail,
             })
         except Exception:
             pass

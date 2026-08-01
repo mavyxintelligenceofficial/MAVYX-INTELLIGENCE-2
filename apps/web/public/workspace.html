@@ -1142,8 +1142,10 @@
       'market_structure':'Market Structure','liquidity':'Liquidity','order_blocks':'Order Blocks',
       'fair_value_gaps':'Fair Value Gaps','break_of_structure':'Break of Structure',
       'change_of_character':'Change of Character','institutional_targets':'Institutional Targets',
-      'invalidation_levels':'Invalidation Levels','news_fundamental':'News/Fundamental',
-      'executive_synthesis':'Executive Synthesis','quorum_gate':'Quorum Gate','pipeline':'Pipeline',
+      'invalidation_levels':'Invalidation Levels','devils_advocate':"Devil's Advocate",
+      'news_fundamental':'News/Fundamental','consensus_engine':'Consensus Engine (code)',
+      'risk_management_gate':'Risk Management Gate (code)','executive_synthesis':'Executive Synthesis',
+      'pipeline':'Pipeline',
     };
     
     function updateTally() {
@@ -1169,15 +1171,32 @@
       const icons = {running:'⟳',completed:'✓',failed:'✗',retrying:'↻'};
       const icon = icons[ev.status] || '⏳';
       let preview = '';
-      if (ev.output_preview) {
+      if (ev.agent === 'consensus_engine' && ev.output_preview) {
+        const p = ev.output_preview;
+        const c = p.counts || {};
+        preview = `${p.majority_bias} (${c.bullish||0}▲ ${c.bearish||0}▼ ${c.neutral||0}–) · agreement ${Math.round((p.agreement_ratio||0)*100)}% · confidence ${Math.round((p.consensus_confidence||0)*100)}%` + (p.disagreement ? ' · DISAGREEMENT' : '');
+      } else if (ev.agent === 'risk_management_gate' && ev.output_preview) {
+        const p = ev.output_preview;
+        preview = `confidence ${Math.round((p.final_confidence||0)*100)}%` + (p.forced_recommendation ? ` · forced: ${p.forced_recommendation}` : '') + (p.risk_flags && p.risk_flags.length ? ` · ${p.risk_flags.length} flag(s)` : '');
+      } else if (ev.agent === 'devils_advocate' && ev.output_preview) {
+        // devils_advocate's "bias"/"confidence" fields are inverted (confidence =
+        // strength of the case AGAINST the trade) — showing them as a normal
+        // bias label would be misleading, so show its actual objection instead.
+        const p = ev.output_preview;
+        const strength = p.confidence ? Math.round(p.confidence*100)+'% objection strength' : '';
+        preview = (p.reasoning || 'no objection found') + (strength ? ` · ${strength}` : '');
+      } else if (ev.output_preview) {
         const b = ev.output_preview.bias || '';
         const cf = ev.output_preview.confidence ? Math.round(ev.output_preview.confidence*100)+'%' : '';
         const lv = ev.output_preview.key_levels?.[0];
-        preview = `${b} · ${cf}` + (lv ? ` · ${lv.type} ${lv.price}` : '');
+        const reasoning = ev.output_preview.reasoning;
+        preview = reasoning ? reasoning : (`${b} · ${cf}` + (lv ? ` · ${lv.type} ${lv.price}` : ''));
+      } else if (ev.detail && (ev.status === 'running' || ev.status === 'retrying')) {
+        preview = ev.detail;
       }
       if (ev.error && ev.status === 'failed') preview = ev.error.substring(0,60);
       const dur = ev.duration_ms ? ev.duration_ms+'ms' : '';
-      row.innerHTML = `<span style="width:18px;text-align:center;font-size:12px;color:${c}">${icon}</span><span style="flex:1;font-weight:700;color:var(--text-soft)">${AGENT_DISPLAY[ev.agent]||ev.agent}</span><span style="font-size:10px;color:${c};font-weight:700;text-transform:uppercase">${ev.status}</span>${dur?`<span style="font-size:10px;color:var(--text-mute)">${dur}</span>`:''}${preview?`<span style="font-size:10px;color:var(--text-mute);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${preview}</span>`:''}`;
+      row.innerHTML = `<span style="width:18px;text-align:center;font-size:12px;color:${c}">${icon}</span><span style="flex:1;font-weight:700;color:var(--text-soft)">${AGENT_DISPLAY[ev.agent]||ev.agent}</span><span style="font-size:10px;color:${c};font-weight:700;text-transform:uppercase">${ev.status}</span>${dur?`<span style="font-size:10px;color:var(--text-mute)">${dur}</span>`:''}${preview?`<span style="font-size:10px;color:var(--text-mute);max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${preview.replace(/"/g,'&quot;')}">${preview}</span>`:''}`;
       row.style.borderColor = ev.status==='running'?'var(--gold-line)':ev.status==='completed'?'var(--border)':ev.status==='failed'?'rgba(178,74,68,.3)':'var(--border)';
       row.style.background = ev.status==='running'?'var(--gold-dim)':ev.status==='failed'?'var(--red-dim)':'var(--bg-panel)';
     }
@@ -1187,7 +1206,11 @@
     window.mavyxBackend.runAnalysisStream(symbol, timeframe, {
       onAgentStatus(ev) { renderRow(ev); },
       onComplete(result) {
-        feedSection.style.display = 'none';
+        feedQuorum.style.display = 'block';
+        feedQuorum.style.background = 'var(--green-dim, rgba(74,178,68,.12))';
+        feedQuorum.style.color = 'var(--green, #4ab244)';
+        feedQuorum.style.border = '1px solid rgba(74,178,68,.3)';
+        feedQuorum.textContent = `Pipeline complete — ${result.successful_agents}/${result.total_agents} agents reported, quorum ${result.quorum_met ? 'met' : 'NOT met'}, risk-adjusted confidence ${Math.round((result.confidence||0)*100)}%`;
         if (window.mavyxSupabase) { try { window.mavyxSupabase.saveAnalysis(result); } catch {} }
         updateBriefFromResult(result);
         showToast('Analysis complete — all panels updated');
