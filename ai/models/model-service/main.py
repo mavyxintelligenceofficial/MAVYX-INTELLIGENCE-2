@@ -1,10 +1,36 @@
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
 # Load .env explicitly, first thing - same lesson learned the hard way in
 # the NestJS services (see PROJECT_REPORT.md Phase 2 Step 2): never rely
 # on a library loading it as a side effect, load it ourselves so behavior
 # is identical and predictable across every service.
 load_dotenv()
+
+_DOTENV_PATH = find_dotenv() or os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env")
+
+
+def persist_env_var(key: str, value: str) -> None:
+    """Write/update a single KEY=value line in the .env file on disk, so a
+    key set via Settings actually persists across restarts - not just in
+    os.environ for the current process, which is lost the moment this
+    service reloads (uvicorn --reload restarts on every source change)."""
+    lines: list[str] = []
+    if os.path.exists(_DOTENV_PATH):
+        with open(_DOTENV_PATH, "r", encoding="utf-8") as f:
+            lines = f.read().split("\n")
+    new_line = f"{key}={value}"
+    found = False
+    for i, line in enumerate(lines):
+        if line.startswith(f"{key}="):
+            lines[i] = new_line
+            found = True
+            break
+    if not found:
+        if lines and lines[-1].strip() != "":
+            lines.append("")
+        lines.append(new_line)
+    with open(_DOTENV_PATH, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines))
 
 import os
 import sys
@@ -102,8 +128,13 @@ async def update_zai_key(body: ApiKeyUpdateRequest, _user: dict = Depends(requir
     """
     if not body.api_key or not body.api_key.strip():
         raise HTTPException(status_code=400, detail="api_key is required")
-    os.environ["ZAI_API_KEY"] = body.api_key.strip()
-    return {"success": True, "message": "Z.AI API key updated"}
+    key = body.api_key.strip()
+    os.environ["ZAI_API_KEY"] = key
+    try:
+        persist_env_var("ZAI_API_KEY", key)
+    except Exception as e:
+        return {"success": True, "message": f"Z.AI API key updated for this session, but could not be saved to .env on disk: {e}"}
+    return {"success": True, "message": "Z.AI API key updated and saved to .env"}
 
 
 @app.get("/health")

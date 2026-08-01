@@ -1,6 +1,33 @@
 import { BadRequestException, Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { MarketService } from './market.service';
+import * as fs from 'fs';
+import * as path from 'path';
+
+/**
+ * Writes/updates a single KEY=value line in the .env file on disk, so a
+ * key set via Settings actually persists across restarts - not just in
+ * process.env for the current process (which is lost the moment this
+ * service restarts, and it runs under ts-node-dev --watch, which restarts
+ * on every file change).
+ */
+function persistEnvVar(key: string, value: string): void {
+  const envPath = path.join(process.cwd(), '.env');
+  let lines: string[] = [];
+  if (fs.existsSync(envPath)) {
+    lines = fs.readFileSync(envPath, 'utf-8').split('\n');
+  }
+  const pattern = new RegExp(`^${key}=`);
+  const idx = lines.findIndex((l) => pattern.test(l));
+  const newLine = `${key}=${value}`;
+  if (idx >= 0) {
+    lines[idx] = newLine;
+  } else {
+    if (lines.length > 0 && lines[lines.length - 1].trim() !== '') lines.push('');
+    lines.push(newLine);
+  }
+  fs.writeFileSync(envPath, lines.join('\n'));
+}
 
 @Controller('market')
 export class MarketController {
@@ -39,9 +66,20 @@ export class MarketController {
     if (!body.apiKey) {
       throw new BadRequestException('apiKey is required');
     }
-    // Update the environment variable at runtime
+    // Update the environment variable for the current process immediately...
     process.env.MARKET_DATA_API_KEY = body.apiKey;
-    return { success: true, message: 'API key updated' };
+    // ...and persist it to .env on disk so it survives a restart (this
+    // service runs under ts-node-dev --watch, which restarts on every
+    // file change - a process.env-only update was being silently lost).
+    try {
+      persistEnvVar('MARKET_DATA_API_KEY', body.apiKey);
+    } catch (err) {
+      return {
+        success: true,
+        message: 'API key updated for this session, but could not be saved to .env on disk: ' + (err as Error).message,
+      };
+    }
+    return { success: true, message: 'API key updated and saved to .env' };
   }
 
   @UseGuards(JwtAuthGuard)

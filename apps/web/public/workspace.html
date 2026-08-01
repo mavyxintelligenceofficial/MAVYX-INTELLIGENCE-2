@@ -1117,7 +1117,17 @@
     
     const symbol = document.querySelector('.tb-pair .sym')?.textContent || 'EUR/USD';
     const activeTf = document.querySelector('.tf-btn.active');
-    const timeframe = activeTf ? activeTf.textContent.trim() : '4H';
+    // Twelve Data's `interval` param uses its own format (15min, 1h, 1day,
+    // etc) which does NOT match these button display labels - sending the
+    // raw label caused every analysis to request an interval Twelve Data
+    // doesn't recognize, resulting in a 404 on every single run.
+    const TWELVE_DATA_INTERVAL_MAP = {
+      '1m': '1min', '5m': '5min', '15m': '15min', '30m': '30min',
+      '1H': '1h', '4H': '4h',
+      'Daily': '1day', 'Weekly': '1week', 'Monthly': '1month',
+    };
+    const rawTf = activeTf ? activeTf.textContent.trim() : '4H';
+    const timeframe = TWELVE_DATA_INTERVAL_MAP[rawTf] || '4h';
     
     // Auto-switch to Executive Brief tab so user sees the feed
     activateAiTab('brief');
