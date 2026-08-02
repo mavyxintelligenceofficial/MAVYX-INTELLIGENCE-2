@@ -1,0 +1,51 @@
+[
+  {
+    "id": "b7dd5872",
+    "title": "Market Structure & Break of Structure",
+    "content": "Market structure is the sequence of swing highs and swing lows. An uptrend prints higher highs and higher lows; a downtrend prints lower highs and lower lows. A Break of Structure (BOS) is when price closes beyond the most recent swing in the direction of the prevailing trend - it confirms trend continuation, not reversal.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "4dc49272",
+    "title": "Change of Character (CHoCH)",
+    "content": "A Change of Character is when price breaks the most recent swing against the prevailing trend - the first swing low broken in an uptrend, or swing high broken in a downtrend. It is the earliest structural signal that the trend may be turning, and carries more weight on higher timeframes than lower ones.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "a7180ffc",
+    "title": "Order Blocks",
+    "content": "An Order Block is the last opposing candle before a strong directional move - the last bearish candle before a strong bullish push is a bullish order block. The theory is that institutional orders cluster there, so price often reacts when it revisits the zone. An order block that has been retested multiple times is considered progressively weaker (mitigated).",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "6783340d",
+    "title": "Fair Value Gaps (FVG)",
+    "content": "A Fair Value Gap is a three-candle imbalance where price moved so fast it left a gap between the first candle's wick and the third's. Bullish FVG: candle 3's low sits above candle 1's high. Bearish FVG: candle 3's high sits below candle 1's low. Price frequently returns to partially or fully fill this gap before continuing in the original direction.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "c382aa04",
+    "title": "Liquidity Pools & Stop Hunts",
+    "content": "Liquidity pools form where retail stop losses cluster - equal highs (buy-side liquidity, stops sit above) and equal lows (sell-side liquidity, stops sit below). Price is frequently engineered toward these obvious levels to trigger stops before reversing - a liquidity grab or stop hunt. These are more common in lower-liquidity sessions such as the Asian session for major pairs.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "b1c06a0d",
+    "title": "Premium & Discount Zones",
+    "content": "Within any defined price range, the area above the midpoint (50%) is the premium zone - a relatively expensive place to buy, more favorable for selling. The area below the midpoint is the discount zone - more favorable for buying. This framework is used to judge whether an entry sits in a statistically favorable part of the current range.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "091fea13",
+    "title": "Classical Technical Analysis Baseline",
+    "content": "Alongside Smart Money Concepts, classical technical analysis still applies: support/resistance as prior reaction zones, trendlines connecting swing points, moving averages (20/50/200) as dynamic support/resistance, and candlestick patterns (engulfing, pin bar, doji) as short-term reversal or indecision signals. These often align with or reinforce SMC-based levels.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  }
+]

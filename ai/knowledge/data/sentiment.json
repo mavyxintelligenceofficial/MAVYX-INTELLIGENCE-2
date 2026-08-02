@@ -1,0 +1,23 @@
+[
+  {
+    "id": "cdc19464",
+    "title": "Risk-On / Risk-Off Regimes",
+    "content": "In risk-on regimes, capital flows toward higher-yielding and growth-sensitive assets (equities, commodity currencies like AUD and NZD); safe havens (JPY, CHF, gold) tend to underperform. In risk-off regimes, this reverses - safe havens strengthen as capital seeks shelter from uncertainty.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "9a80d118",
+    "title": "Positioning & Crowded Trades",
+    "content": "Extreme one-sided speculative positioning (e.g. from COT reports or broker sentiment data) can signal an overcrowded trade at risk of a sharp reversal if a catalyst triggers unwinding. Sentiment extremes are contrarian signals more often than trend-confirming ones.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "c1c41902",
+    "title": "News Sentiment vs. Price Action",
+    "content": "News sentiment should be weighed against how price actually reacts to it. If ostensibly bullish news fails to push price higher (or price falls despite it), that divergence itself is informative - it can indicate the news was already priced in, or that underlying positioning is heavier on the other side than headlines suggest.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  }
+]

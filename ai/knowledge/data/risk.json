@@ -1,0 +1,30 @@
+[
+  {
+    "id": "149e3ca0",
+    "title": "Position Sizing & Risk Per Trade",
+    "content": "A widely used institutional guideline is risking no more than 1-2% of account equity on a single trade. Position size follows from (Account Equity x Risk%) / (Entry Price - Stop Loss Price). This keeps a losing streak survivable: ten straight 2%-risk losses cost about 18% of the account; ten straight 10%-risk losses cost roughly 65%, which is far harder to recover from.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "27f18140",
+    "title": "Risk/Reward Ratio",
+    "content": "A minimum 1:2 risk/reward ratio is a common baseline - risking 1 unit to target 2. At 1:2, a trader only needs roughly a 34% win rate to break even before costs; at 1:3, roughly 25%. Favorable R:R ratios create margin for being wrong more often than right and still being profitable over time.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "7c7fdd45",
+    "title": "Drawdown Management",
+    "content": "Drawdown is the decline from an equity peak to a subsequent trough. Recovering from drawdown gets disproportionately harder the deeper it goes - a 20% drawdown needs a 25% gain to recover, a 50% drawdown needs a 100% gain. Risk management exists primarily to keep drawdowns in the easily-recoverable range.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "f9054824",
+    "title": "Correlation Risk",
+    "content": "Trading multiple positions in correlated instruments (e.g. several USD pairs in the same direction) multiplies effective exposure to a single underlying driver, even though it looks like diversification on paper. True risk reduction requires genuinely uncorrelated or offsetting exposure.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  }
+]

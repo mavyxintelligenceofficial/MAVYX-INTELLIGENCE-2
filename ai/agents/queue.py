@@ -35,7 +35,7 @@ MAX_RETRIES = 1
 RETRY_DELAYS = [2, 5]  # exponential backoff delays
 
 # Quorum: minimum agents that must report successfully before synthesis
-MIN_QUORUM = 7  # out of 12 total agents (11 specialists incl. devils_advocate + news_fundamental)
+MIN_QUORUM = 4  # out of 6 total agents (Technical, Fundamental, Sentiment, Risk Manager, Quant, Devil's Advocate)
 
 
 @dataclass
@@ -249,7 +249,16 @@ class AgentQueue:
                     ))
                     return fallback
                 
-                # Success — cache and return
+                # Success — the agent's identity is a fact the code already
+                # knows (it's the agent_name parameter), never something to
+                # trust the LLM to self-report correctly. Stamp it so a
+                # confused/retried LLM response can never masquerade as, or
+                # fail to match, the correct agent - this is what other
+                # code depends on to find a specific agent's output later
+                # (e.g. the risk gate looking for devils_advocate's output).
+                raw_output["agent"] = agent_name
+
+                # cache and return
                 self.cache.put(agent_name, symbol, timeframe, candle_data, raw_output)
                 
                 self._emit_status(AgentStatus(

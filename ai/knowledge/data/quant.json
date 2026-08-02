@@ -1,0 +1,30 @@
+[
+  {
+    "id": "518ab6b1",
+    "title": "Statistical Significance in Backtesting",
+    "content": "A backtest's win rate or edge is only meaningful with a large enough sample size - a handful of trades can look like a strong edge purely from noise. Results should be evaluated across enough trades and market regimes to distinguish a genuine statistical edge from random variance.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "9d8f3b43",
+    "title": "Correlation vs. Causation",
+    "content": "Two instruments or indicators moving together (correlation) does not establish that one causes the other, and historical correlations between instruments can and do break down, especially across different volatility or macro regimes.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "41f7840d",
+    "title": "Overfitting",
+    "content": "A strategy tuned to perform extremely well on historical data specifically often fails to generalize to new, unseen market conditions - this is overfitting. Simpler rules that perform reasonably across varied historical periods tend to be more robust than complex rules that perform perfectly on one.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "c0502d18",
+    "title": "Sample Size & Regime Dependence",
+    "content": "Market behavior differs meaningfully across regimes (trending vs. ranging, high vs. low volatility). A pattern's historical hit rate calculated across a single regime may not hold in a different one - the regime the data was drawn from matters as much as the raw sample size.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  }
+]

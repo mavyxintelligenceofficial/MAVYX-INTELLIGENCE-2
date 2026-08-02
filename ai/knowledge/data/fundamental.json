@@ -1,0 +1,37 @@
+[
+  {
+    "id": "231408d0",
+    "title": "Interest Rates & Currency Strength",
+    "content": "Higher interest rates generally attract foreign capital seeking yield, strengthening a currency; rate cuts generally weaken it. Markets react as much to the expectation and forward guidance around a rate decision (hawkish vs. dovish tone) as to the decision itself - a 'hawkish cut' can strengthen a currency and a 'dovish hike' can weaken one.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "ba7e84b7",
+    "title": "CPI & Inflation Data",
+    "content": "Consumer Price Index measures inflation. Higher-than-expected CPI typically raises expectations of tighter monetary policy (rate hikes or delayed cuts), which tends to strengthen the currency; lower-than-expected CPI does the reverse. Core CPI (excluding volatile food/energy) is often weighted more heavily by central banks than headline CPI.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "f07b52b1",
+    "title": "Non-Farm Payrolls & Employment Data",
+    "content": "NFP is released the first Friday of most months and is one of the highest-impact USD events - it measures net job creation and heavily informs Fed policy expectations. Strong job growth with rising wages tends to support a stronger USD (fewer/later cuts expected); weak prints tend to weaken it.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "f73088e9",
+    "title": "GDP & Economic Growth",
+    "content": "GDP measures the total value of goods and services produced, reported quarterly. Above-forecast GDP growth generally supports a currency (signals a healthier economy, room for tighter policy); a contraction or recessionary print generally weighs on it.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  },
+  {
+    "id": "c8ecb428",
+    "title": "Central Bank Communication",
+    "content": "Central bank press conferences and meeting minutes often move markets more than the headline rate decision itself, through forward guidance about future policy path. Markets price in expectations ahead of the event, so the actual market reaction is driven by the surprise relative to expectations, not the absolute number.",
+    "source": "seed",
+    "added_at": "2026-08-01T23:13:15Z"
+  }
+]

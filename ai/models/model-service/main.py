@@ -63,6 +63,9 @@ from providers.zai_provider import ZaiProvider
 
 app = FastAPI(title="Mavyx Model Service")
 
+from knowledge.knowledge_base import seed_if_empty
+seed_if_empty()
+
 # CORS — allow frontend (port 3000) and gateway (port 4000)
 app.add_middleware(
     CORSMiddleware,

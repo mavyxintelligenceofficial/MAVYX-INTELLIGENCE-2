@@ -20,17 +20,11 @@ from typing import Any, Optional, Callable
 
 from agents.queue import AgentQueue, OutputCache, PipelineResult, AgentStatus
 from agents.schema import validate_specialist_output, validate_executive_output
-from agents.specialists.market_structure_v2 import MarketStructureAgent
-from agents.specialists.liquidity_v2 import LiquidityAgent
-from agents.specialists.order_blocks_v2 import OrderBlocksAgent
-from agents.specialists.fair_value_gaps_v2 import FairValueGapsAgent
-from agents.specialists.break_of_structure_v2 import BreakOfStructureAgent
-from agents.specialists.change_of_character_v2 import ChangeOfCharacterAgent
-from agents.specialists.premium_discount_v2 import PremiumDiscountAgent
-from agents.specialists.session_boundaries_v2 import SessionBoundariesAgent
-from agents.specialists.institutional_targets_v2 import InstitutionalTargetsAgent
-from agents.specialists.invalidation_levels_v2 import InvalidationLevelsAgent
-from agents.specialists.news_fundamental_v2 import NewsFundamentalAgent
+from agents.specialists.technical_analysis import TechnicalAnalysisAgent
+from agents.specialists.fundamental import FundamentalAgent
+from agents.specialists.sentiment import SentimentAgent
+from agents.specialists.risk_manager import RiskManagerAgent
+from agents.specialists.quant import QuantAgent
 from agents.specialists.devils_advocate import DevilsAdvocateAgent
 from agents.specialists.executive_synthesis_v2 import (
     build_synthesis_prompt, parse_executive_response, 
@@ -41,27 +35,23 @@ from decision_engine.risk_engine import run_risk_gate
 
 logger = logging.getLogger(__name__)
 
-# Agent execution order — independent agents first, dependents after
-# Per spec Section 4: dependency ordering
+# Agent execution order per the user's architecture: Technical -> Fundamental
+# -> Sentiment -> Risk Manager -> Quant, each with its own domain-scoped RAG
+# knowledge base (see ai/knowledge/). Devil's Advocate runs last among
+# specialists so it can challenge every other agent's output. This replaces
+# the previous generation's 10 narrow ICT-concept agents + a separately
+# special-cased news agent - Fundamental now absorbs the economic-calendar
+# role directly as a regular specialist in this same list.
 SPECIALIST_ORDER = [
-    # Independent agents (no dependencies)
-    ("session_boundaries", SessionBoundariesAgent),
-    ("premium_discount", PremiumDiscountAgent),
-    ("market_structure", MarketStructureAgent),
-    ("liquidity", LiquidityAgent),
-    ("order_blocks", OrderBlocksAgent),
-    ("fair_value_gaps", FairValueGapsAgent),
-    ("break_of_structure", BreakOfStructureAgent),
-    ("change_of_character", ChangeOfCharacterAgent),
-    ("institutional_targets", InstitutionalTargetsAgent),
-    # Dependent agents (need prior outputs)
-    ("invalidation_levels", InvalidationLevelsAgent),
+    ("technical_analysis", TechnicalAnalysisAgent),
+    ("fundamental", FundamentalAgent),
+    ("sentiment", SentimentAgent),
+    ("risk_manager", RiskManagerAgent),
+    ("quant", QuantAgent),
     # Devil's Advocate runs last among specialists so it can challenge
-    # every other agent's output, including invalidation_levels'.
+    # every other agent's output.
     ("devils_advocate", DevilsAdvocateAgent),
 ]
-
-NEWS_AGENT = ("news_fundamental", NewsFundamentalAgent)
 
 
 class AIOrchestratorV2:
@@ -148,14 +138,24 @@ class AIOrchestratorV2:
                     model=model,
                 )
                 return raw
-            
+
+            agent_context = {"session": session, "economic_calendar": economic_calendar or []}
+            if agent_name == "devils_advocate":
+                # Devil's Advocate's entire job is to challenge what the
+                # other agents found - it needs their actual outputs, not
+                # just session/calendar context. It always runs last in
+                # SPECIALIST_ORDER, so every prior output is available here.
+                agent_context["prior_agent_outputs"] = {
+                    o.get("agent", "unknown"): o for o in specialist_outputs
+                }
+
             output = await self.queue.run_agent(
                 agent_name=agent_name,
                 agent_func=run_agent_func,
                 symbol=symbol,
                 timeframe=timeframe,
                 candle_data=candle_data,
-                context={"session": session},
+                context=agent_context,
                 request_id=f"spec_{agent_name}",
                 min_candles=agent.min_candles,
                 detail=agent.domain_description,
@@ -163,36 +163,6 @@ class AIOrchestratorV2:
             
             specialist_outputs.append(output)
             result.specialists.append(output)
-        
-        # ─── Phase 2: Run News/Fundamental Agent (in parallel slot) ───
-        # It doesn't depend on price-derived agents
-        news_agent = NewsFundamentalAgent()
-        
-        async def run_news_func(sym, candles, tf, ctx):
-            system_prompt = news_agent.build_system_prompt()
-            user_prompt = news_agent.build_user_prompt(sym, candles, tf, {
-                **ctx,
-                "economic_calendar": economic_calendar or [],
-            })
-            return await self.provider.generate(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                model=model,
-            )
-        
-        news_output = await self.queue.run_agent(
-            agent_name="news_fundamental",
-            agent_func=run_news_func,
-            symbol=symbol,
-            timeframe=timeframe,
-            candle_data=candle_data,
-            context={"economic_calendar": economic_calendar or []},
-            request_id="news",
-            min_candles=news_agent.min_candles,
-            detail=news_agent.domain_description,
-        )
-        specialist_outputs.append(news_output)
-        result.specialists.append(news_output)
         
         # ─── Phase 3: Consensus Engine (code-computed, Rule 2) ───
         self._emit_status(AgentStatus(

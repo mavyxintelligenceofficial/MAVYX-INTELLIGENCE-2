@@ -42,11 +42,11 @@ REQUIRED OUTPUT FORMAT — return ONLY valid JSON:
 {
   "recommendation": "buy | sell | wait | no_trade",
   "confidence": 0.0,
-  "agents_reporting": 10,
-  "agents_data_sufficient": 7,
-  "bull_case": ["point 1 (agent: order_blocks)", "point 2 (agent: liquidity)"],
-  "bear_case": ["point 1 (agent: change_of_character)"],
-  "risk_assessment": "string, must cite specific invalidation_levels agent output",
+  "agents_reporting": 6,
+  "agents_data_sufficient": 4,
+  "bull_case": ["point 1 (agent: technical_analysis)", "point 2 (agent: fundamental)"],
+  "bear_case": ["point 1 (agent: sentiment)"],
+  "risk_assessment": "string, must cite specific risk_manager agent output",
   "invalidation_price": 1.1345,
   "recommended_scenario": "string",
   "alternative_scenario": "string"

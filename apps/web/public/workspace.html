@@ -967,7 +967,7 @@
         <div id="liveFeedSection" style="display:none;">
           <div class="section-label" style="margin-bottom:8px;">
             <span>Live Agent Activity</span>
-            <span id="liveFeedTally" style="font-size:10px;color:var(--text-mute);">0/12 queued</span>
+            <span id="liveFeedTally" style="font-size:10px;color:var(--text-mute);">0/6 queued</span>
           </div>
           <div id="liveFeedRows" class="stack" style="gap:4px;"></div>
           <div id="liveFeedQuorum" style="display:none;margin-top:8px;padding:8px 10px;border-radius:6px;font-size:11px;font-weight:700;"></div>
@@ -1148,12 +1148,10 @@
     
     const agentStatuses = {};
     const AGENT_DISPLAY = {
-      'session_boundaries':'Session Boundaries','premium_discount':'Premium/Discount',
-      'market_structure':'Market Structure','liquidity':'Liquidity','order_blocks':'Order Blocks',
-      'fair_value_gaps':'Fair Value Gaps','break_of_structure':'Break of Structure',
-      'change_of_character':'Change of Character','institutional_targets':'Institutional Targets',
-      'invalidation_levels':'Invalidation Levels','devils_advocate':"Devil's Advocate",
-      'news_fundamental':'News/Fundamental','consensus_engine':'Consensus Engine (code)',
+      'technical_analysis':'Technical Analysis','fundamental':'Fundamental',
+      'sentiment':'Sentiment','risk_manager':'Risk Manager','quant':'Quant',
+      'devils_advocate':"Devil's Advocate",
+      'consensus_engine':'Consensus Engine (code)',
       'risk_management_gate':'Risk Management Gate (code)','executive_synthesis':'Executive Synthesis',
       'pipeline':'Pipeline',
     };
