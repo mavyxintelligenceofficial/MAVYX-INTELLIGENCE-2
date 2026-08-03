@@ -1,4 +1,6 @@
 from dotenv import load_dotenv, find_dotenv
+import os
+import sys
 
 # Load .env explicitly, first thing - same lesson learned the hard way in
 # the NestJS services (see PROJECT_REPORT.md Phase 2 Step 2): never rely
@@ -32,9 +34,6 @@ def persist_env_var(key: str, value: str) -> None:
     with open(_DOTENV_PATH, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
 
-import os
-import sys
-
 # Add the ai/ directory to Python's import path so we can import
 # orchestration, agents, and decision_engine from sibling folders.
 # Without this, Python only looks in ai/models/model-service/ and
@@ -44,7 +43,8 @@ if _ai_root not in sys.path:
     sys.path.insert(0, _ai_root)
 
 from typing import Optional
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Header
+import time
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -224,12 +224,17 @@ async def generate(body: GenerateRequest, _user: dict = Depends(require_auth)):
 
 
 @app.post("/analyze")
-async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
+async def analyze(
+    body: AnalyzeRequest,
+    user: dict = Depends(require_auth),
+    authorization: str = Header(default=None),
+):
     """Run the full AI analysis pipeline for a symbol.
     
-    Uses the rebuilt 12-agent system (v2) with:
+    Uses the 6-agent system (Technical Analysis, Fundamental, Sentiment,
+    Risk Manager, Quant, Devil's Advocate) with:
     - Sequential execution with rate limiting
-    - Quorum gate (7/10 minimum)
+    - Quorum gate (4/6 minimum)
     - Schema validation on every response
     - Output caching
     """
@@ -238,7 +243,11 @@ async def analyze(body: AnalyzeRequest, user: dict = Depends(require_auth)):
     from analysis_store import AnalysisStore
     
     try:
-        market_data = await fetch_market_data(body.symbol, body.timeframe)
+        # Pass the caller's own auth token through to market-service - it
+        # requires JWT auth on /market/quote and /market/candles, and this
+        # fetcher previously sent no auth header at all, so every candle
+        # fetch failed with 401 regardless of anything else being correct.
+        market_data = await fetch_market_data(body.symbol, body.timeframe, auth_header=authorization)
     except Exception:
         market_data = {"candles": []}
     
@@ -272,7 +281,11 @@ _feed_lock = threading.Lock()
 
 
 @app.post("/analyze/stream")
-async def analyze_stream(body: AnalyzeRequest, user: dict = Depends(require_auth)):
+async def analyze_stream(
+    body: AnalyzeRequest,
+    user: dict = Depends(require_auth),
+    authorization: str = Header(default=None),
+):
     """Run analysis with SSE for Live Activity Feed (Section 8)."""
     from orchestration.orchestrator_v2 import AIOrchestratorV2
     from market_data_fetcher import fetch_market_data
@@ -301,7 +314,7 @@ async def analyze_stream(body: AnalyzeRequest, user: dict = Depends(require_auth
     
     async def run_analysis():
         try:
-            market_data = await fetch_market_data(body.symbol, body.timeframe)
+            market_data = await fetch_market_data(body.symbol, body.timeframe, auth_header=authorization)
         except:
             market_data = {"candles": []}
         

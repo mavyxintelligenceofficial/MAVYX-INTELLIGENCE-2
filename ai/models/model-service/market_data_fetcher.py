@@ -25,19 +25,26 @@ MARKET_SERVICE_URL = os.environ.get(
 
 
 async def fetch_market_data(
-    symbol: str, timeframe: str = "4h"
+    symbol: str, timeframe: str = "4h", auth_header: str = None
 ) -> dict[str, Any]:
     """Fetch market data from the market-service.
 
     Args:
         symbol: Currency pair (e.g. "EUR/USD")
         timeframe: Candle interval (e.g. "4h", "1h", "1d")
+        auth_header: The raw "Bearer <token>" header value from the
+            original /analyze request. market-service's /market/quote and
+            /market/candles require JWT auth (JwtAuthGuard) - this was
+            previously never sent at all, so every single fetch failed
+            with 401 regardless of anything else (API key, interval
+            format) being correct.
 
     Returns:
         {"price": Quote, "candles": [Candle, ...]}
     """
     price = {}
     candles = []
+    headers = {"Authorization": auth_header} if auth_header else {}
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         # Fetch live quote
@@ -45,6 +52,7 @@ async def fetch_market_data(
             resp = await client.get(
                 f"{MARKET_SERVICE_URL}/market/quote",
                 params={"symbol": symbol},
+                headers=headers,
             )
             if resp.status_code == 200:
                 price = resp.json()
@@ -61,6 +69,7 @@ async def fetch_market_data(
             resp = await client.get(
                 f"{MARKET_SERVICE_URL}/market/candles",
                 params={"symbol": symbol, "interval": timeframe},
+                headers=headers,
             )
             if resp.status_code == 200:
                 data = resp.json()
